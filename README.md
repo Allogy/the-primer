@@ -8,51 +8,47 @@ Extension SDK for the Capillary Actions platform. Provides port interfaces, data
 
 ## Architecture
 
-The platform uses a hexagonal (ports and adapters) architecture. This SDK exposes the port contracts and data models needed to build adapters without access to the platform internals.
+The SDK is a **contract library** following [Explicit Architecture](https://herbertograca.com/2017/11/16/explicit-architecture-01-ddd-hexagonal-onion-clean-cqrs-how-i-put-it-all-together/) (Hexagonal + Clean Architecture + DDD). It defines the domain models, port interfaces, and shared event protocol that the platform and its extensions agree on — with zero dependencies beyond Pydantic.
 
+```mermaid
+graph TD
+    subgraph outermost["Infrastructure Layer"]
+        REF["<code>reference/</code> — Concrete adapter examples"]
+    end
+
+    subgraph shared["Shared Kernel"]
+        EVT["<code>events.py</code> — AG-UI event protocol (12 types)"]
+    end
+
+    subgraph boundary["Application Boundary"]
+        PORTS["<code>ports/</code> — Port interfaces: 10 inbound, 12 outbound"]
+    end
+
+    subgraph innermost["Domain Layer"]
+        MODELS["<code>models/</code> — Entities &amp; Value Objects (32 models)"]
+    end
+
+    REF --> PORTS
+    REF --> EVT
+    PORTS --> MODELS
+    PORTS --> EVT
+
+    style innermost fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style boundary fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style shared fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style outermost fill:#fce4ec,stroke:#c62828,stroke-width:2px
 ```
-capillary_actions_sdk/
-├── events.py              # AG-UI protocol event types (universal interface)
-├── ports/
-│   ├── platform.py        # Platform-provided ports (RunWorkflow, EventStream, etc.)
-│   ├── student_model.py   # Cohort-based preference engine ports
-│   ├── learning_actions.py # Triggers, orchestration, agent loop ports
-│   ├── learner_interaction.py # Knowledge graph, progress, teaching ports
-│   └── presentation.py    # Multi-channel adapter ports
-├── models/
-│   ├── student_model.py   # PreferenceSignal, Cohort, CohortSnapshot, MemoryEntry
-│   ├── learning_actions.py # TriggerDefinition, OrchestrationPlan, AgentLoopDefinition, Engagement
-│   ├── learner_interaction.py # KnowledgeConcept, KnowledgeGraph, LearnerProgress, TeachingContext
-│   └── presentation.py    # ChannelSession, ChannelMessage, HitlGateConfig
-└── reference/
-    └── slack_adapter.py   # Reference ChannelAdapterPort implementation
-```
 
-### Port types
+Dependencies point **inward** — the domain depends on nothing; infrastructure depends on everything. See [Architecture Overview](docs/architecture.md) for the full picture.
 
-**Platform ports** (`ports/platform.py`) — ABCs representing existing platform capabilities. These are already implemented by the platform; your code invokes them.
+## Extension Domains
 
-| Port | Purpose |
-|---|---|
-| `RunWorkflowPort` | Start new workflow runs (streaming or sync) |
-| `ResumeWorkflowPort` | Resume or reject paused HITL workflow runs |
-| `EventStreamPort` | Serialise AG-UI events to SSE strings |
-| `StateManagerPort` | Read/write per-thread workflow state |
-
-Request/response DTOs: `RunWorkflowRequest`, `RunWorkflowResponse`, `ResumeWorkflowRequest`, `ResumeWorkflowResponse`
-
-**Extension ports** (`ports/student_model.py`, `ports/learning_actions.py`, `ports/learner_interaction.py`, `ports/presentation.py`) — ABCs you implement. Each defines an inbound side (usecases the system exposes) and an outbound side (adapters you provide).
-
-### AG-UI events
-
-All communication between the platform and external adapters flows through the AG-UI event protocol. The `events.py` module defines the 12 base event types:
-
-| Category | Events |
-|---|---|
-| Lifecycle | `RUN_STARTED`, `RUN_FINISHED`, `RUN_ERROR` |
-| Messages | `TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END` |
-| State | `STATE_SNAPSHOT`, `STATE_DELTA` |
-| Tools | `TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`, `TOOL_CALL_RESULT` |
+| Track | Domain | Focus | Main Extension Point |
+|-------|--------|-------|---------------------|
+| 1 | Student Model | Cohort-based preference aggregation, learner memory | `CohortStrategyPort` |
+| 2a | Learning Actions | Triggers, orchestration DAGs, agent loops | `TriggerSchedulerPort` |
+| 2b | Learner Interaction | Knowledge graphs, learner progress, teaching | `KnowledgeGraphPort`, `LearnerProgressPort`, `TeachingPort` |
+| 3 | Presentation | Multi-channel messaging, sessions, HITL gates | `ChannelAdapterPort` |
 
 ## Getting Started
 
@@ -93,9 +89,7 @@ uv run pytest tests/ -v
 
 ### 4. Implement a port
 
-Every extension starts by subclassing a port ABC. Here are three examples — one per extension domain.
-
-**Channel adapter** (presentation layer):
+Every extension starts by subclassing a port ABC. Here is an example — a Telegram channel adapter:
 
 ```python
 from capillary_actions_sdk.events import AGUIEvent, AGUIEventType
@@ -145,65 +139,9 @@ class TelegramAdapter(ChannelAdapterPort):
         ...
 ```
 
-**Cohort strategy** (student model):
-
-```python
-from uuid import UUID
-
-from capillary_actions_sdk.models.student_model import PreferenceSignal
-from capillary_actions_sdk.ports.student_model import CohortStrategyPort
-
-
-class KMeansStrategy(CohortStrategyPort):
-    @property
-    def strategy_type(self) -> str:
-        return 'kmeans_clustering'
-
-    async def assign(self, user_id: UUID, signals: list[PreferenceSignal]) -> list[UUID]:
-        # Compute feature vector from signals, find nearest cluster
-        ...
-
-    async def evolve(self, cohort_id: UUID, new_signals: list[PreferenceSignal]) -> dict:
-        # Update cluster centroid with new data points
-        ...
-
-    async def should_reorganize(self, cohort_id: UUID) -> bool:
-        # Check if intra-cluster variance exceeds threshold
-        ...
-
-    async def reorganize(self, org_id: UUID) -> dict:
-        # Re-run k-means across all users
-        ...
-```
-
-**Trigger scheduler** (learning actions):
-
-```python
-from collections.abc import Callable
-from typing import Any
-
-from capillary_actions_sdk.models.learning_actions import TriggerDefinition
-from capillary_actions_sdk.ports.learning_actions import TriggerSchedulerPort
-
-
-class CronScheduler(TriggerSchedulerPort):
-    async def schedule(self, trigger: TriggerDefinition) -> str:
-        # Register cron job, return handle
-        ...
-
-    async def cancel(self, handle: str) -> None:
-        ...
-
-    async def list_active(self) -> list[dict[str, Any]]:
-        ...
-
-    async def register_webhook_handler(self, path: str, callback: Callable) -> None:
-        ...
-```
+For more examples (cohort strategies, trigger schedulers), see [Reference Adapters](docs/reference-adapters.md).
 
 ### 5. Test your adapter
-
-Write tests against the port interface. The SDK includes tests that demonstrate the pattern:
 
 ```python
 import pytest
@@ -227,65 +165,20 @@ class TestMyAdapter:
 
 See `tests/test_reference_slack.py` for a full example testing the reference Slack adapter.
 
-## Extension Domains
+## Documentation
 
-### Student Model
+Detailed architecture documentation, organized by layer:
 
-Cohort-based preference aggregation. Users are grouped into evolving cohorts; preferences are resolved at the cohort level rather than individually.
+| Document | Covers |
+|----------|--------|
+| [Architecture Overview](docs/architecture.md) | Big picture: concentric layers, dependency rule, port taxonomy |
+| [Domain Models](docs/domain-models.md) | `models/` — entity/value object classification, the four tracks |
+| [Ports](docs/ports.md) | `ports/` — inbound/outbound catalog, extension points, method patterns |
+| [Events](docs/events.md) | `events.py` — AG-UI Shared Kernel, event taxonomy, lifecycle sequence |
+| [Reference Adapters](docs/reference-adapters.md) | `reference/` — SlackChannelAdapter dissected, building your own |
+| [Contributing](docs/contributing.md) | Dependency rule, checklists, testing patterns, code standards |
 
-| Port | Direction | Purpose |
-|---|---|---|
-| `IngestSignalPort` | Inbound | Receive preference signals |
-| `QueryCohortPort` | Inbound | Query cohort preferences |
-| `ManageCohortPort` | Inbound | CRUD on cohorts |
-| `CohortStrategyPort` | Outbound | Clustering algorithm (main extension point) |
-| `SignalStorePort` | Outbound | Signal persistence |
-| `CohortStorePort` | Outbound | Cohort persistence |
-
-Key models: `PreferenceSignal`, `Cohort`, `CohortSnapshot`, `MembershipEvent`, `IngestResult`, `MemoryEntry`, `WorkingMemoryAssembly`
-
-### Learning Actions
-
-Three composable layers for continuous AI operations: triggers (when), orchestrators (what), agent loops (how long).
-
-| Port | Direction | Purpose |
-|---|---|---|
-| `RegisterTriggerPort` | Inbound | Manage trigger definitions |
-| `RunOrchestratorPort` | Inbound | Execute workflow orchestrations |
-| `RunAgentLoopPort` | Inbound | Run autonomous agent loops |
-| `TriggerSchedulerPort` | Outbound | Scheduling engine (main extension point) |
-| `WorkflowInvokerPort` | Outbound | Execute single workflows |
-| `LoopStatePort` | Outbound | Agent loop state persistence |
-| `OrchestrationStatePort` | Outbound | Orchestration state persistence |
-
-Key models: `TriggerDefinition`, `OrchestrationPlan`, `AgentLoopDefinition`, `WorkflowResult`, `LoopIteration`, `Engagement`
-
-### Learner Interaction
-
-Knowledge graphs, learner progress tracking, and teaching context assembly. Provides the pedagogical foundation for adaptive learning experiences.
-
-| Port | Direction | Purpose |
-|---|---|---|
-| `KnowledgeGraphPort` | Outbound | Query and manage Knowledge Graphs |
-| `LearnerProgressPort` | Outbound | Track learner mastery progress |
-| `TeachingPort` | Outbound | Assemble teaching context and record outcomes |
-
-Key models: `KnowledgeConcept`, `KnowledgeGraph`, `LearnerProgress`, `TeachingContext`
-
-### Presentation Layer
-
-Bidirectional channel adapters that translate AG-UI events to/from messaging platforms.
-
-| Port | Direction | Purpose |
-|---|---|---|
-| `ChannelAdapterPort` | Outbound | Channel bridge (main extension point) |
-| `ChannelSessionStorePort` | Outbound | Session mapping persistence |
-
-Key models: `ChannelSession`, `ChannelMessage`, `ChannelFile`, `HitlGateConfig`
-
-Reference implementation: `capillary_actions_sdk.reference.slack_adapter.SlackChannelAdapter`
-
-## Contribution Guidelines
+## Contributing
 
 ### Prerequisites
 
@@ -293,78 +186,19 @@ Reference implementation: `capillary_actions_sdk.reference.slack_adapter.SlackCh
 - [uv](https://docs.astral.sh/uv/) for dependency management
 - Familiarity with Python ABCs and Pydantic v2
 
-### Setup
+### Quick Start
 
 ```bash
 git clone https://github.com/Allogy/capillary-actions-sdk.git
 cd capillary-actions-sdk
 uv venv && uv sync --all-groups
 uv run pytest tests/ -v          # verify baseline
+uv run ruff check src/ tests/    # lint
+uv run ruff format src/ tests/   # format
 ```
 
-### Development workflow
+See [Contributing Guide](docs/contributing.md) for the full development workflow, architectural guardrails, and checklists.
 
-1. **Create a branch** from `main`:
-   ```bash
-   git checkout -b feature/<short-description>
-   ```
+## License
 
-2. **Implement your adapter** by subclassing the relevant port ABC. Place source files under `src/capillary_actions_sdk/` following the existing module structure.
-
-3. **Write tests** in `tests/`. Follow the existing patterns:
-   - Verify your class is a valid `isinstance` of the port
-   - Test each abstract method implementation
-   - Use `@pytest.mark.asyncio` for async tests
-   - Use in-memory state for unit tests (no external services)
-
-4. **Lint and format** before committing:
-   ```bash
-   uv run ruff check src/ tests/
-   uv run ruff format src/ tests/
-   ```
-
-5. **Run the full test suite:**
-   ```bash
-   uv run pytest tests/ -v
-   ```
-
-6. **Commit** with conventional commit messages:
-   ```
-   feat: add Telegram channel adapter
-   fix: handle empty message buffer in WhatsApp adapter
-   test: add integration tests for cron trigger scheduler
-   docs: update port contract docstrings
-   ```
-
-### Submission
-
-Submissions should include:
-
-1. **Architecture proposal** — a document covering:
-   - Problem analysis and approach
-   - System design with data flow diagrams
-   - Port contract conformance (which ports you implement, how they interact)
-   - Trade-off analysis
-   - Scalability and failure mode considerations
-
-2. **Proof of concept** — working code that:
-   - Implements at least one port from the SDK
-   - Includes tests that pass against the port interface
-   - Demonstrates the core mechanism (can be against mock data)
-
-Submit as a pull request to this repository, or as a separate repository that depends on this SDK.
-
-### Code standards
-
-- **Line length:** 100 characters
-- **Quotes:** single quotes in source, double quotes acceptable
-- **Type annotations:** required on all public methods
-- **Imports:** absolute only, sorted by ruff
-- **Async:** all port methods are async; implementations must be async
-- **Dependencies:** do not add runtime dependencies beyond `pydantic`. Dev dependencies (testing tools, linters) go in `[dependency-groups] dev`
-
-### What not to modify
-
-- `events.py` — the AG-UI event types are a fixed protocol contract
-- `ports/platform.py` — these are extracted platform ABCs, not extension points
-- Existing port ABCs — extend by implementing, not by modifying the interfaces
+[MIT](LICENSE)
