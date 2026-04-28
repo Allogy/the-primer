@@ -60,7 +60,7 @@ All communication between the platform and external adapters flows through the A
 
 ```bash
 # Clone and install in development mode
-git clone git@bitbucket.org:allogy/primer-sdk.git
+git clone git@github.com:primer-sdk/primer-sdk.git
 cd primer-sdk
 uv venv && uv sync --all-groups
 ```
@@ -68,7 +68,7 @@ uv venv && uv sync --all-groups
 Or install directly:
 
 ```bash
-uv pip install git+ssh://git@bitbucket.org/allogy/primer-sdk.git
+uv pip install git+ssh://git@github.com/primer-sdk/primer-sdk.git
 ```
 
 ### 2. Verify installation
@@ -296,7 +296,7 @@ Reference implementation: `primer_sdk.reference.slack_adapter.SlackChannelAdapte
 ### Setup
 
 ```bash
-git clone git@bitbucket.org:allogy/primer-sdk.git
+git clone git@github.com:primer-sdk/primer-sdk.git
 cd primer-sdk
 uv venv && uv sync --all-groups
 uv run pytest tests/ -v          # verify baseline

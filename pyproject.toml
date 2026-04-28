@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13,<4.0"
 authors = [
-    { name = "Allogy Interactive", email = "engineering@allogy.com" },
+    { name = "Primer SDK Contributors" },
 ]
 keywords = ["sdk", "ai", "agents", "workflows", "ag-ui"]
 classifiers = [
@@ -25,8 +25,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://bitbucket.org/allogy/primer-sdk"
-Repository = "https://bitbucket.org/allogy/primer-sdk"
+Homepage = "https://github.com/primer-sdk/primer-sdk"
+Repository = "https://github.com/primer-sdk/primer-sdk"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/primer_sdk"]
