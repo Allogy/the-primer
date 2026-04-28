@@ -32,6 +32,15 @@ primer_sdk/
 
 **Platform ports** (`ports/platform.py`) — ABCs representing existing platform capabilities. These are already implemented by the platform; your code invokes them.
 
+| Port | Purpose |
+|---|---|
+| `RunWorkflowPort` | Start new workflow runs (streaming or sync) |
+| `ResumeWorkflowPort` | Resume or reject paused HITL workflow runs |
+| `EventStreamPort` | Serialise AG-UI events to SSE strings |
+| `StateManagerPort` | Read/write per-thread workflow state |
+
+Request/response DTOs: `RunWorkflowRequest`, `RunWorkflowResponse`, `ResumeWorkflowRequest`, `ResumeWorkflowResponse`
+
 **Extension ports** (`ports/student_model.py`, `ports/learning_actions.py`, `ports/learner_interaction.py`, `ports/presentation.py`) — ABCs you implement. Each defines an inbound side (usecases the system exposes) and an outbound side (adapters you provide).
 
 ### AG-UI events
@@ -352,7 +361,7 @@ Submit as a pull request to this repository, or as a separate repository that de
 - **Type annotations:** required on all public methods
 - **Imports:** absolute only, sorted by ruff
 - **Async:** all port methods are async; implementations must be async
-- **Dependencies:** do not add runtime dependencies beyond `pydantic`. Dev dependencies (testing tools, linters) go in `[project.optional-dependencies] dev`
+- **Dependencies:** do not add runtime dependencies beyond `pydantic`. Dev dependencies (testing tools, linters) go in `[dependency-groups] dev`
 
 ### What not to modify
 

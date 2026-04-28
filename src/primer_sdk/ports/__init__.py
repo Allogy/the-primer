@@ -1,5 +1,4 @@
-# Platform ports
-# Track 2 — Learning Actions ports
+# Track 2 — Learner Interaction ports
 from primer_sdk.ports.learner_interaction import (
     KnowledgeGraphPort,
     LearnerProgressPort,

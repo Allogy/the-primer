@@ -114,10 +114,11 @@ class ToolCallArgsEvent(AGUIEvent):
     args_chunk: str
 
     def to_dict(self) -> dict[str, Any]:
-        d = super().to_dict()
-        d["tool_call_id"] = self.tool_call_id
-        d["args_chunk"] = self.args_chunk
-        return d
+        return {
+            **super().to_dict(),
+            "tool_call_id": self.tool_call_id,
+            "args_chunk": self.args_chunk,
+        }
 
 
 class ToolCallEndEvent(AGUIEvent):
