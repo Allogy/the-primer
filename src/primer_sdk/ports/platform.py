@@ -1,4 +1,4 @@
-"""Platform port interfaces for the Capillary Actions SDK.
+"""Platform port interfaces for the Primer SDK.
 
 These ABCs represent EXISTING platform capabilities that SDK consumers
 INVOKE — they do NOT implement these. Concrete implementations are provided by

@@ -1,6 +1,6 @@
 # Primer SDK
 
-Extension SDK for the Capillary Actions platform. Provides port interfaces, data models, and AG-UI event types for building adapters and services that integrate with the platform's hexagonal architecture.
+Extension SDK for the Primer platform. Provides port interfaces, data models, and AG-UI event types for building adapters and services that integrate with the platform's hexagonal architecture.
 
 **Status:** Development (0.1.0)
 

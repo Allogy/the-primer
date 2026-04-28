@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "primer-sdk"
 version = "0.1.0"
-description = "SDK for building extensions to the Capillary Actions platform"
+description = "SDK for building extensions to the Primer platform"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13,<4.0"

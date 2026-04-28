@@ -1,7 +1,7 @@
 """Primer SDK.
 
 Port interfaces, models, and reference implementations for building
-extensions to the Capillary Actions platform.
+extensions to the Primer platform.
 
 Usage:
     from primer_sdk.events import AGUIEvent, TextMessageContentEvent
