@@ -24,7 +24,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
 
-from capillary_sdk.events import AGUIEvent
+from primer_sdk.events import AGUIEvent
 
 
 class RunWorkflowRequest:
@@ -120,7 +120,7 @@ class RunWorkflowPort(ABC):
             request: Parameters for the new workflow run.
 
         Yields:
-            :class:`~capillary_sdk.events.AGUIEvent` instances in emission order.
+            :class:`~primer_sdk.events.AGUIEvent` instances in emission order.
         """
         ...
 
@@ -152,7 +152,7 @@ class ResumeWorkflowPort(ABC):
             request: Parameters identifying the run to resume.
 
         Yields:
-            :class:`~capillary_sdk.events.AGUIEvent` instances in emission order.
+            :class:`~primer_sdk.events.AGUIEvent` instances in emission order.
         """
         ...
 
@@ -193,7 +193,7 @@ class EventStreamPort(ABC):
         """Serialise a stream of AG-UI events to Server-Sent Event strings.
 
         Args:
-            events: Async iterator of :class:`~capillary_sdk.events.AGUIEvent` objects.
+            events: Async iterator of :class:`~primer_sdk.events.AGUIEvent` objects.
 
         Yields:
             SSE-formatted strings ready for HTTP streaming responses.
@@ -205,7 +205,7 @@ class EventStreamPort(ABC):
         """Serialise a single AG-UI event to an SSE-formatted string.
 
         Args:
-            event: The :class:`~capillary_sdk.events.AGUIEvent` to serialise.
+            event: The :class:`~primer_sdk.events.AGUIEvent` to serialise.
 
         Returns:
             SSE-formatted string for the given event.

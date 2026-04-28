@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from capillary_sdk.models.student_model import (
+from primer_sdk.models.student_model import (
     Cohort,
     CohortSnapshot,
     IngestResult,

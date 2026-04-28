@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from capillary_sdk.models.learner_interaction import (
+from primer_sdk.models.learner_interaction import (
     KnowledgeConcept,
     KnowledgeGraph,
     LearnerProgress,

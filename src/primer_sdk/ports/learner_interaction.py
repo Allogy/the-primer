@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 from uuid import UUID
 
-from capillary_sdk.models.learner_interaction import (
+from primer_sdk.models.learner_interaction import (
     KnowledgeConcept,
     KnowledgeGraph,
     LearnerProgress,

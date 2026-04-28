@@ -1,4 +1,4 @@
-# Capillary Actions SDK
+# Primer SDK
 
 Extension SDK for the Capillary Actions platform. Provides port interfaces, data models, and AG-UI event types for building adapters and services that integrate with the platform's hexagonal architecture.
 
@@ -11,7 +11,7 @@ Extension SDK for the Capillary Actions platform. Provides port interfaces, data
 The platform uses a hexagonal (ports and adapters) architecture. This SDK exposes the port contracts and data models needed to build adapters without access to the platform internals.
 
 ```
-capillary_sdk/
+primer_sdk/
 ├── events.py              # AG-UI protocol event types (universal interface)
 ├── ports/
 │   ├── platform.py        # Platform-provided ports (RunWorkflow, EventStream, etc.)
@@ -49,25 +49,25 @@ All communication between the platform and external adapters flows through the A
 
 ```bash
 # Clone and install in development mode
-git clone git@bitbucket.org:allogy/capillary-actions-sdk.git
-cd capillary-actions-sdk
+git clone git@bitbucket.org:allogy/primer-sdk.git
+cd primer-sdk
 uv venv && uv sync --all-groups
 ```
 
 Or install directly:
 
 ```bash
-uv pip install git+ssh://git@bitbucket.org/allogy/capillary-actions-sdk.git
+uv pip install git+ssh://git@bitbucket.org/allogy/primer-sdk.git
 ```
 
 ### 2. Verify installation
 
 ```bash
 uv run python -c "
-from capillary_sdk.events import AGUIEvent, AGUIEventType
-from capillary_sdk.ports import ChannelAdapterPort, CohortStrategyPort
-from capillary_sdk.models import PreferenceSignal, TriggerDefinition, ChannelSession
-print(f'capillary_sdk loaded — {len(AGUIEventType)} event types')
+from primer_sdk.events import AGUIEvent, AGUIEventType
+from primer_sdk.ports import ChannelAdapterPort, CohortStrategyPort
+from primer_sdk.models import PreferenceSignal, TriggerDefinition, ChannelSession
+print(f'primer_sdk loaded — {len(AGUIEventType)} event types')
 "
 ```
 
@@ -84,14 +84,14 @@ Every extension starts by subclassing a port ABC. Here are three examples — on
 **Channel adapter** (presentation layer):
 
 ```python
-from capillary_sdk.events import AGUIEvent, AGUIEventType
-from capillary_sdk.models.presentation import (
+from primer_sdk.events import AGUIEvent, AGUIEventType
+from primer_sdk.models.presentation import (
     ChannelFile,
     ChannelMessage,
     ChannelSession,
     HitlGateConfig,
 )
-from capillary_sdk.ports.presentation import ChannelAdapterPort
+from primer_sdk.ports.presentation import ChannelAdapterPort
 
 
 class TelegramAdapter(ChannelAdapterPort):
@@ -136,8 +136,8 @@ class TelegramAdapter(ChannelAdapterPort):
 ```python
 from uuid import UUID
 
-from capillary_sdk.models.student_model import PreferenceSignal
-from capillary_sdk.ports.student_model import CohortStrategyPort
+from primer_sdk.models.student_model import PreferenceSignal
+from primer_sdk.ports.student_model import CohortStrategyPort
 
 
 class KMeansStrategy(CohortStrategyPort):
@@ -168,8 +168,8 @@ class KMeansStrategy(CohortStrategyPort):
 from collections.abc import Callable
 from typing import Any
 
-from capillary_sdk.models.cycle_loop import TriggerDefinition
-from capillary_sdk.ports.cycle_loop import TriggerSchedulerPort
+from primer_sdk.models.cycle_loop import TriggerDefinition
+from primer_sdk.ports.cycle_loop import TriggerSchedulerPort
 
 
 class CronScheduler(TriggerSchedulerPort):
@@ -193,7 +193,7 @@ Write tests against the port interface. The SDK includes tests that demonstrate 
 
 ```python
 import pytest
-from capillary_sdk.ports.presentation import ChannelAdapterPort
+from primer_sdk.ports.presentation import ChannelAdapterPort
 
 
 class TestMyAdapter:
@@ -257,7 +257,7 @@ Bidirectional channel adapters that translate AG-UI events to/from messaging pla
 
 Key models: `ChannelSession`, `ChannelMessage`, `ChannelFile`, `HitlGateConfig`
 
-Reference implementation: `capillary_sdk.reference.slack_adapter.SlackChannelAdapter`
+Reference implementation: `primer_sdk.reference.slack_adapter.SlackChannelAdapter`
 
 ## Contribution Guidelines
 
@@ -270,8 +270,8 @@ Reference implementation: `capillary_sdk.reference.slack_adapter.SlackChannelAda
 ### Setup
 
 ```bash
-git clone git@bitbucket.org:allogy/capillary-actions-sdk.git
-cd capillary-actions-sdk
+git clone git@bitbucket.org:allogy/primer-sdk.git
+cd primer-sdk
 uv venv && uv sync --all-groups
 uv run pytest tests/ -v          # verify baseline
 ```
@@ -283,7 +283,7 @@ uv run pytest tests/ -v          # verify baseline
    git checkout -b feature/<short-description>
    ```
 
-2. **Implement your adapter** by subclassing the relevant port ABC. Place source files under `src/capillary_sdk/` following the existing module structure.
+2. **Implement your adapter** by subclassing the relevant port ABC. Place source files under `src/primer_sdk/` following the existing module structure.
 
 3. **Write tests** in `tests/`. Follow the existing patterns:
    - Verify your class is a valid `isinstance` of the port

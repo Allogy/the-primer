@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from capillary_sdk.ports.student_model import (
+from primer_sdk.ports.student_model import (
     CohortStorePort,
     CohortStrategyPort,
     IngestSignalPort,
@@ -64,7 +64,7 @@ class ConcreteIngestSignalPort(IngestSignalPort):
         return None
 
     async def ingest_batch(self, signals):
-        from capillary_sdk.models.student_model import IngestResult
+        from primer_sdk.models.student_model import IngestResult
 
         return IngestResult(processed=len(signals), skipped=0, failed=0)
 
@@ -96,7 +96,7 @@ class ConcreteManageCohortPort(ManageCohortPort):
     async def create_cohort(self, org_id, name, strategy_type, config):
         from datetime import datetime, timezone
 
-        from capillary_sdk.models.student_model import Cohort
+        from primer_sdk.models.student_model import Cohort
 
         return Cohort(
             id=uuid4(),
@@ -114,7 +114,7 @@ class ConcreteManageCohortPort(ManageCohortPort):
     async def get_cohort(self, cohort_id):
         from datetime import datetime, timezone
 
-        from capillary_sdk.models.student_model import Cohort
+        from primer_sdk.models.student_model import Cohort
 
         return Cohort(
             id=cohort_id,
@@ -132,7 +132,7 @@ class ConcreteManageCohortPort(ManageCohortPort):
     async def force_evolution(self, cohort_id):
         from datetime import datetime, timezone
 
-        from capillary_sdk.models.student_model import CohortSnapshot
+        from primer_sdk.models.student_model import CohortSnapshot
 
         return CohortSnapshot(
             timestamp=datetime.now(timezone.utc),

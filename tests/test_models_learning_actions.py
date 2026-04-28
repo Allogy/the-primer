@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from capillary_sdk.models.learning_actions import (
+from primer_sdk.models.learning_actions import (
     AgentLoopDefinition,
     ExitCondition,
     # Layer 3 — Agent Loops

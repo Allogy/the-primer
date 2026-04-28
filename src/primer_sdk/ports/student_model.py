@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from capillary_sdk.models.student_model import (
+from primer_sdk.models.student_model import (
     Cohort,
     CohortSnapshot,
     IngestResult,
@@ -37,7 +37,7 @@ class IngestSignalPort(ABC):
             signals: List of preference signals to ingest.
 
         Returns:
-            :class:`~capillary_sdk.models.student_model.IngestResult` summarising
+            :class:`~primer_sdk.models.student_model.IngestResult` summarising
             how many records were processed, skipped, or failed.
         """
         ...
@@ -55,7 +55,7 @@ class QueryCohortPort(ABC):
             org_id: The organisation scope.
 
         Returns:
-            List of :class:`~capillary_sdk.models.student_model.Cohort` instances.
+            List of :class:`~primer_sdk.models.student_model.Cohort` instances.
         """
         ...
 
@@ -105,7 +105,7 @@ class ManageCohortPort(ABC):
             config: Strategy-specific configuration.
 
         Returns:
-            The newly created :class:`~capillary_sdk.models.student_model.Cohort`.
+            The newly created :class:`~primer_sdk.models.student_model.Cohort`.
         """
         ...
 
@@ -117,7 +117,7 @@ class ManageCohortPort(ABC):
             org_id: The organisation to query.
 
         Returns:
-            List of :class:`~capillary_sdk.models.student_model.Cohort` instances.
+            List of :class:`~primer_sdk.models.student_model.Cohort` instances.
         """
         ...
 
@@ -129,7 +129,7 @@ class ManageCohortPort(ABC):
             cohort_id: The cohort to retrieve.
 
         Returns:
-            The :class:`~capillary_sdk.models.student_model.Cohort`.
+            The :class:`~primer_sdk.models.student_model.Cohort`.
         """
         ...
 
@@ -150,7 +150,7 @@ class ManageCohortPort(ABC):
             cohort_id: The cohort to evolve.
 
         Returns:
-            A :class:`~capillary_sdk.models.student_model.CohortSnapshot` taken
+            A :class:`~primer_sdk.models.student_model.CohortSnapshot` taken
             after the evolution completes.
         """
         ...
@@ -252,7 +252,7 @@ class SignalStorePort(ABC):
             limit: Maximum number of results to return.
 
         Returns:
-            List of matching :class:`~capillary_sdk.models.student_model.PreferenceSignal`
+            List of matching :class:`~primer_sdk.models.student_model.PreferenceSignal`
             instances.
         """
         ...
@@ -278,7 +278,7 @@ class CohortStorePort(ABC):
             cohort_id: The cohort to retrieve.
 
         Returns:
-            The :class:`~capillary_sdk.models.student_model.Cohort` or ``None``.
+            The :class:`~primer_sdk.models.student_model.Cohort` or ``None``.
         """
         ...
 
@@ -291,7 +291,7 @@ class CohortStorePort(ABC):
             org_id: The organisation scope.
 
         Returns:
-            List of :class:`~capillary_sdk.models.student_model.Cohort` instances.
+            List of :class:`~primer_sdk.models.student_model.Cohort` instances.
         """
         ...
 

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from capillary_sdk.ports.learner_interaction import (
+from primer_sdk.ports.learner_interaction import (
     KnowledgeGraphPort,
     LearnerProgressPort,
     TeachingPort,
@@ -40,7 +40,7 @@ class TestTeachingPortIsAbstract:
 
 class ConcreteKnowledgeGraphPort(KnowledgeGraphPort):
     async def get_graph(self, graph_id):
-        from capillary_sdk.models.learner_interaction import KnowledgeGraph
+        from primer_sdk.models.learner_interaction import KnowledgeGraph
 
         return KnowledgeGraph(
             id=graph_id,
@@ -51,7 +51,7 @@ class ConcreteKnowledgeGraphPort(KnowledgeGraphPort):
         )
 
     async def get_concept(self, concept_id):
-        from capillary_sdk.models.learner_interaction import KnowledgeConcept
+        from primer_sdk.models.learner_interaction import KnowledgeConcept
 
         return KnowledgeConcept(id=concept_id, name=concept_id.title(), description="Test concept")
 
@@ -70,7 +70,7 @@ class TestConcreteKnowledgeGraphPort:
 
 class ConcreteLearnerProgressPort(LearnerProgressPort):
     async def get_progress(self, learner_id, graph_id):
-        from capillary_sdk.models.learner_interaction import LearnerProgress
+        from primer_sdk.models.learner_interaction import LearnerProgress
 
         return LearnerProgress(learner_id=learner_id, knowledge_graph_id=graph_id)
 
@@ -89,7 +89,7 @@ class TestConcreteLearnerProgressPort:
 
 class ConcreteTeachingPort(TeachingPort):
     async def build_context(self, learner_id, concept_id):
-        from capillary_sdk.models.learner_interaction import (
+        from primer_sdk.models.learner_interaction import (
             KnowledgeConcept,
             LearnerProgress,
             TeachingContext,

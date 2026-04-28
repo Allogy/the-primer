@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from capillary_sdk.ports.presentation import (
+from primer_sdk.ports.presentation import (
     ChannelAdapterPort,
     ChannelSessionStorePort,
 )
@@ -46,7 +46,7 @@ class ConcreteChannelAdapterPort(ChannelAdapterPort):
         return None
 
     async def receive_message(self, raw_payload):
-        from capillary_sdk.models.presentation import ChannelMessage, ChannelSession
+        from primer_sdk.models.presentation import ChannelMessage, ChannelSession
 
         session = ChannelSession(
             id=uuid4(),
@@ -66,7 +66,7 @@ class ConcreteChannelAdapterPort(ChannelAdapterPort):
         return None
 
     async def resolve_session(self, raw_payload):
-        from capillary_sdk.models.presentation import ChannelSession
+        from primer_sdk.models.presentation import ChannelSession
 
         return ChannelSession(
             id=uuid4(),
@@ -117,7 +117,7 @@ class ConcreteChannelSessionStorePort(ChannelSessionStorePort):
         platform_user_id=None,
         org_id=None,
     ):
-        from capillary_sdk.models.presentation import ChannelSession
+        from primer_sdk.models.presentation import ChannelSession
 
         return ChannelSession(
             id=uuid4(),

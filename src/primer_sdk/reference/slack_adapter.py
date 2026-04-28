@@ -3,20 +3,20 @@ from __future__ import annotations
 from typing import Any
 from uuid import uuid4
 
-from capillary_sdk.events import (
+from primer_sdk.events import (
     AGUIEvent,
     AGUIEventType,
     RunErrorEvent,
     StateSnapshotEvent,
     TextMessageContentEvent,
 )
-from capillary_sdk.models.presentation import (
+from primer_sdk.models.presentation import (
     ChannelFile,
     ChannelMessage,
     ChannelSession,
     HitlGateConfig,
 )
-from capillary_sdk.ports.presentation import ChannelAdapterPort
+from primer_sdk.ports.presentation import ChannelAdapterPort
 
 
 class SlackChannelAdapter(ChannelAdapterPort):

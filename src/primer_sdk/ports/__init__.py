@@ -1,11 +1,11 @@
 # Platform ports
 # Track 2 — Learning Actions ports
-from capillary_sdk.ports.learner_interaction import (
+from primer_sdk.ports.learner_interaction import (
     KnowledgeGraphPort,
     LearnerProgressPort,
     TeachingPort,
 )
-from capillary_sdk.ports.learning_actions import (
+from primer_sdk.ports.learning_actions import (
     LoopStatePort,
     OrchestrationStatePort,
     RegisterTriggerPort,
@@ -14,7 +14,7 @@ from capillary_sdk.ports.learning_actions import (
     TriggerSchedulerPort,
     WorkflowInvokerPort,
 )
-from capillary_sdk.ports.platform import (
+from primer_sdk.ports.platform import (
     EventStreamPort,
     ResumeWorkflowPort,
     ResumeWorkflowRequest,
@@ -26,13 +26,13 @@ from capillary_sdk.ports.platform import (
 )
 
 # Track 3 — Presentation ports
-from capillary_sdk.ports.presentation import (
+from primer_sdk.ports.presentation import (
     ChannelAdapterPort,
     ChannelSessionStorePort,
 )
 
 # Track 1 — Student Model ports
-from capillary_sdk.ports.student_model import (
+from primer_sdk.ports.student_model import (
     CohortStorePort,
     CohortStrategyPort,
     IngestSignalPort,

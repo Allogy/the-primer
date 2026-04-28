@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from capillary_sdk.events import AGUIEvent
-from capillary_sdk.models.presentation import (
+from primer_sdk.events import AGUIEvent
+from primer_sdk.models.presentation import (
     ChannelFile,
     ChannelMessage,
     ChannelSession,
@@ -70,7 +70,7 @@ class ChannelAdapterPort(ABC):
             raw_payload: Raw webhook payload from the channel platform.
 
         Returns:
-            Normalised :class:`~capillary_sdk.models.presentation.ChannelMessage`.
+            Normalised :class:`~primer_sdk.models.presentation.ChannelMessage`.
         """
         ...
 
@@ -82,7 +82,7 @@ class ChannelAdapterPort(ABC):
             raw_payload: Raw webhook payload from the channel platform.
 
         Returns:
-            :class:`~capillary_sdk.models.presentation.ChannelFile` if a file
+            :class:`~primer_sdk.models.presentation.ChannelFile` if a file
             was uploaded, otherwise ``None``.
         """
         ...
@@ -95,7 +95,7 @@ class ChannelAdapterPort(ABC):
             raw_payload: Raw webhook payload from the channel platform.
 
         Returns:
-            The :class:`~capillary_sdk.models.presentation.ChannelSession`
+            The :class:`~primer_sdk.models.presentation.ChannelSession`
             associated with this inbound event.
         """
         ...
@@ -156,7 +156,7 @@ class ChannelSessionStorePort(ABC):
             channel_conversation_id: The conversation identifier within the channel.
 
         Returns:
-            The matching :class:`~capillary_sdk.models.presentation.ChannelSession`,
+            The matching :class:`~primer_sdk.models.presentation.ChannelSession`,
             or ``None`` if no session exists.
         """
         ...
@@ -169,7 +169,7 @@ class ChannelSessionStorePort(ABC):
             workflow_run_id: The workflow run to look up.
 
         Returns:
-            List of :class:`~capillary_sdk.models.presentation.ChannelSession`
+            List of :class:`~primer_sdk.models.presentation.ChannelSession`
             instances bound to this run.
         """
         ...
@@ -193,6 +193,6 @@ class ChannelSessionStorePort(ABC):
             org_id: Optional organisation UUID to associate.
 
         Returns:
-            The newly created :class:`~capillary_sdk.models.presentation.ChannelSession`.
+            The newly created :class:`~primer_sdk.models.presentation.ChannelSession`.
         """
         ...

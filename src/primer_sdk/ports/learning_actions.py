@@ -7,8 +7,8 @@ from collections.abc import AsyncIterator
 from typing import Any
 from uuid import UUID
 
-from capillary_sdk.events import AGUIEvent
-from capillary_sdk.models.learning_actions import (
+from primer_sdk.events import AGUIEvent
+from primer_sdk.models.learning_actions import (
     AgentLoopDefinition,
     LoopEvent,
     LoopIteration,
@@ -50,7 +50,7 @@ class RegisterTriggerPort(ABC):
             updates: Partial update payload.
 
         Returns:
-            The updated :class:`~capillary_sdk.models.learning_actions.TriggerDefinition`.
+            The updated :class:`~primer_sdk.models.learning_actions.TriggerDefinition`.
         """
         ...
 
@@ -71,7 +71,7 @@ class RegisterTriggerPort(ABC):
             org_id: The organisation to query.
 
         Returns:
-            List of :class:`~capillary_sdk.models.learning_actions.TriggerDefinition` instances.
+            List of :class:`~primer_sdk.models.learning_actions.TriggerDefinition` instances.
         """
         ...
 
@@ -84,7 +84,7 @@ class RegisterTriggerPort(ABC):
             limit: Maximum number of history records to return.
 
         Returns:
-            List of :class:`~capillary_sdk.models.learning_actions.TriggerEvent` instances.
+            List of :class:`~primer_sdk.models.learning_actions.TriggerEvent` instances.
         """
         ...
 
@@ -105,7 +105,7 @@ class RunOrchestratorPort(ABC):
             initial_input: Optional initial state to seed the run.
 
         Yields:
-            :class:`~capillary_sdk.models.learning_actions.OrchestrationEvent` instances.
+            :class:`~primer_sdk.models.learning_actions.OrchestrationEvent` instances.
         """
         ...
 
@@ -126,7 +126,7 @@ class RunOrchestratorPort(ABC):
             orchestration_run_id: ID of the run to inspect.
 
         Returns:
-            :class:`~capillary_sdk.models.learning_actions.OrchestrationStatus` snapshot.
+            :class:`~primer_sdk.models.learning_actions.OrchestrationStatus` snapshot.
         """
         ...
 
@@ -147,7 +147,7 @@ class RunAgentLoopPort(ABC):
             initial_context: Optional context to inject at the first iteration.
 
         Yields:
-            :class:`~capillary_sdk.models.learning_actions.LoopEvent` instances.
+            :class:`~primer_sdk.models.learning_actions.LoopEvent` instances.
         """
         ...
 
@@ -238,7 +238,7 @@ class WorkflowInvokerPort(ABC):
             timeout: Optional timeout in seconds.
 
         Returns:
-            :class:`~capillary_sdk.models.learning_actions.WorkflowResult`.
+            :class:`~primer_sdk.models.learning_actions.WorkflowResult`.
         """
         ...
 
@@ -255,7 +255,7 @@ class WorkflowInvokerPort(ABC):
             input_data: Input payload for the workflow.
 
         Yields:
-            :class:`~capillary_sdk.events.AGUIEvent` instances.
+            :class:`~primer_sdk.events.AGUIEvent` instances.
         """
         ...
 
@@ -281,7 +281,7 @@ class LoopStatePort(ABC):
             loop_run_id: ID of the loop run to query.
 
         Returns:
-            List of :class:`~capillary_sdk.models.learning_actions.LoopIteration` instances.
+            List of :class:`~primer_sdk.models.learning_actions.LoopIteration` instances.
         """
         ...
 
@@ -328,7 +328,7 @@ class OrchestrationStatePort(ABC):
             run_id: ID of the run to retrieve.
 
         Returns:
-            The :class:`~capillary_sdk.models.learning_actions.OrchestrationRun` or ``None``.
+            The :class:`~primer_sdk.models.learning_actions.OrchestrationRun` or ``None``.
         """
         ...
 
@@ -345,6 +345,6 @@ class OrchestrationStatePort(ABC):
             plan_id: Optional plan ID to filter results.
 
         Returns:
-            List of :class:`~capillary_sdk.models.learning_actions.OrchestrationRun` instances.
+            List of :class:`~primer_sdk.models.learning_actions.OrchestrationRun` instances.
         """
         ...

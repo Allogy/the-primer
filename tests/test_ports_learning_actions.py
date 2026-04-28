@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from capillary_sdk.ports.learning_actions import (
+from primer_sdk.ports.learning_actions import (
     LoopStatePort,
     OrchestrationStatePort,
     RegisterTriggerPort,
@@ -71,7 +71,7 @@ class ConcreteRegisterTriggerPort(RegisterTriggerPort):
         return uuid4()
 
     async def update(self, trigger_id, updates):
-        from capillary_sdk.models.learning_actions import TriggerDefinition, TriggerTarget
+        from primer_sdk.models.learning_actions import TriggerDefinition, TriggerTarget
 
         return TriggerDefinition(
             id=trigger_id,
@@ -108,7 +108,7 @@ class ConcreteRunOrchestratorPort(RunOrchestratorPort):
         return None
 
     async def get_status(self, orchestration_run_id):
-        from capillary_sdk.models.learning_actions import OrchestrationStatus
+        from primer_sdk.models.learning_actions import OrchestrationStatus
 
         return OrchestrationStatus(
             run_id=orchestration_run_id,
@@ -164,7 +164,7 @@ class TestConcreteTriggerSchedulerPort:
 
 class ConcreteWorkflowInvokerPort(WorkflowInvokerPort):
     async def invoke(self, workflow_id, input_data, timeout=None):
-        from capillary_sdk.models.learning_actions import WorkflowResult
+        from primer_sdk.models.learning_actions import WorkflowResult
 
         return WorkflowResult(
             run_id=uuid4(),

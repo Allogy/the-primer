@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from capillary_sdk.events import (
+from primer_sdk.events import (
     AGUIEvent,
     AGUIEventType,
     RunErrorEvent,
