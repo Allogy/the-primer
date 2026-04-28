@@ -6,17 +6,27 @@ build-backend = "hatchling.build"
 name = "primer-sdk"
 version = "0.1.0"
 description = "SDK for building extensions to the Capillary Actions platform"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.13,<4.0"
+authors = [
+    { name = "Allogy Interactive", email = "engineering@allogy.com" },
+]
+keywords = ["sdk", "ai", "agents", "workflows", "ag-ui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.4.0",
-]
+[project.urls]
+Homepage = "https://bitbucket.org/allogy/primer-sdk"
+Repository = "https://bitbucket.org/allogy/primer-sdk"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/primer_sdk"]
