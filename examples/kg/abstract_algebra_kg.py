@@ -1,6 +1,6 @@
 """Test fixture — Abstract Algebra knowledge graph (hand-authored).
 
-Six concepts covering the path from Set Theory → Group → Subgroup → Cosets.
+Six concepts covering the path from Set Theory -> Group -> Subgroup -> Cosets.
 Designed to exercise all three gate decisions: pass, retry, escalate.
 """
 

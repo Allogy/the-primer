@@ -1,0 +1,12 @@
+assessment_modalities:
+  recall:
+    context: "Short factual answer expected."
+
+  explanation:
+    context: "Student should explain reasoning in their own words."
+
+  application:
+    context: "Student should show step-by-step solution."
+
+  project:
+    context: "Student should produce a structured artifact."

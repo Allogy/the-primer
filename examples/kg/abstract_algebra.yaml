@@ -1,0 +1,140 @@
+id: "00000000-0000-0000-0000-000000000001"
+name: "Abstract Algebra — Foundations"
+description: "Core group theory concepts from set-theoretic prerequisites to quotient groups."
+source: "hand-authored"
+
+concepts:
+  - id: set-theory
+    name: Set Theory Basics
+    description: >
+      Sets, elements, subsets, union, intersection, and Cartesian product.
+      The language all algebraic structures are built on.
+    prerequisites: []
+    difficulty: 1
+    tags: [foundations, logic]
+    bloom_level: remember
+    assessment_modality: recall
+    passing_threshold: 0.70
+    mastery_criteria:
+      - Can define a set and identify elements
+      - Can compute union, intersection, and Cartesian product
+      - Can distinguish subset from proper subset
+    misconceptions:
+      - Confusing the empty set ∅ with {∅}
+      - Treating {1, 2} and {2, 1} as different sets
+    decay_halflife_days: 28
+    max_attempts: 3
+    estimated_minutes: 15
+
+  - id: binary-operations
+    name: Binary Operations
+    description: >
+      A binary operation on a set S is a function S × S → S.
+      Closure, commutativity, associativity, identity, and inverses.
+    prerequisites: [set-theory]
+    difficulty: 2
+    tags: [foundations, operations]
+    bloom_level: understand
+    assessment_modality: explanation
+    passing_threshold: 0.72
+    mastery_criteria:
+      - Can explain what closure means and verify it for an example
+      - Can distinguish commutative from non-commutative operations
+      - Can identify identity element and inverses
+    misconceptions:
+      - Assuming all binary operations are commutative
+      - Confusing the identity element with zero
+    decay_halflife_days: 21
+    max_attempts: 3
+    estimated_minutes: 20
+
+  - id: group
+    name: Group
+    description: >
+      A group (G, ·) is a set with a binary operation satisfying closure,
+      associativity, identity, and inverses.
+    prerequisites: [set-theory, binary-operations]
+    difficulty: 3
+    tags: [core, group-theory]
+    bloom_level: understand
+    assessment_modality: explanation
+    passing_threshold: 0.75
+    mastery_criteria:
+      - Can state all four group axioms from memory
+      - Can verify whether a structure is a group
+      - Can give examples (ℤ under +, S₃)
+      - Can explain why (ℕ, +) is not a group
+    misconceptions:
+      - Assuming groups must be commutative
+      - Forgetting inverses must exist for every element
+      - Thinking identity must be 0 or 1
+    decay_halflife_days: 14
+    max_attempts: 3
+    estimated_minutes: 30
+
+  - id: subgroup
+    name: Subgroup
+    description: >
+      A subgroup H of G is a non-empty subset closed under the group operation
+      and inverses. The subgroup test provides a shortcut.
+    prerequisites: [group]
+    difficulty: 3
+    tags: [group-theory, substructures]
+    bloom_level: apply
+    assessment_modality: application
+    passing_threshold: 0.75
+    mastery_criteria:
+      - Can apply the subgroup test
+      - Can verify 2ℤ ≤ ℤ
+      - Can identify failed subgroup conditions
+    misconceptions:
+      - Assuming every subset is a subgroup
+      - Forgetting closure under inverses
+    decay_halflife_days: 14
+    max_attempts: 3
+    estimated_minutes: 25
+
+  - id: cosets
+    name: Cosets
+    description: >
+      For H ≤ G and g ∈ G, the left coset gH = {gh : h ∈ H}.
+      Cosets partition the group and lead to Lagrange's theorem.
+    prerequisites: [subgroup]
+    difficulty: 4
+    tags: [group-theory, cosets]
+    bloom_level: apply
+    assessment_modality: application
+    passing_threshold: 0.75
+    mastery_criteria:
+      - Can compute left/right cosets
+      - Can show cosets partition a group
+      - Can apply Lagrange's theorem
+    misconceptions:
+      - Assuming left cosets equal right cosets
+      - Treating cosets as subgroups
+    decay_halflife_days: 14
+    max_attempts: 3
+    estimated_minutes: 30
+
+  - id: homomorphism
+    name: Group Homomorphism
+    description: >
+      A homomorphism φ: G → H satisfies φ(ab) = φ(a)φ(b).
+      Kernel and image are key invariants.
+    prerequisites: [group, subgroup]
+    difficulty: 4
+    tags: [group-theory, maps]
+    bloom_level: analyze
+    assessment_modality: application
+    passing_threshold: 0.78
+    mastery_criteria:
+      - Can verify homomorphism property
+      - Can compute kernel and image
+      - Can test isomorphism
+      - Can explain kernel is a normal subgroup
+    misconceptions:
+      - Thinking every homomorphism is an isomorphism
+      - Confusing kernel with identity
+    decay_halflife_days: 10
+    max_attempts: 4
+    estimated_minutes: 40

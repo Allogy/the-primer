@@ -1,0 +1,24 @@
+bloom_levels:
+  remember:
+    teaching: "Define the concept clearly and concisely."
+    probe: "Ask the student to recall the definition."
+
+  understand:
+    teaching: "Explain intuitively and give an analogy."
+    probe: "Ask for explanation and an example."
+
+  apply:
+    teaching: "Show step-by-step usage on an example."
+    probe: "Give a novel problem requiring application."
+
+  analyze:
+    teaching: "Break into components and relationships."
+    probe: "Ask to decompose a structure or failure case."
+
+  evaluate:
+    teaching: "Explain criteria for judging correctness."
+    probe: "Ask to compare two cases with justification."
+
+  create:
+    teaching: "Show how to compose ideas into new structures."
+    probe: "Ask the student to design or construct something."

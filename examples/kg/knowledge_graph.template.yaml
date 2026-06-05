@@ -1,0 +1,75 @@
+# ============================================================
+# Knowledge Graph Template
+# ------------------------------------------------------------
+# This file defines a structured learning graph.
+# Replace placeholder values and add/remove concepts as needed.
+# ============================================================
+
+id: "00000000-0000-0000-0000-000000000000"
+name: "YOUR KNOWLEDGE GRAPH NAME"
+description: "Short description of the learning domain."
+source: "hand-authored"
+
+concepts:
+  # ----------------------------------------------------------
+  # CONCEPT TEMPLATE
+  # ----------------------------------------------------------
+  - id: example-concept-id
+    name: Example Concept Name
+    description: >
+      Write a clear explanation of the concept here.
+      You can use multi-line text like this.
+
+    prerequisites:
+      - another-concept-id
+
+    difficulty: 1 # (1 = easiest, higher = harder)
+
+    tags:
+      - example-tag
+      - foundational
+
+    bloom_level: remember
+    assessment_modality: recall
+
+    passing_threshold: 0.70
+
+    mastery_criteria:
+      - "Clear, testable learning objective"
+      - "Another measurable skill"
+
+    misconceptions:
+      - "Common misunderstanding #1"
+      - "Common misunderstanding #2"
+
+    decay_halflife_days: 14
+    max_attempts: 3
+    estimated_minutes: 15
+
+  # ----------------------------------------------------------
+  # ADD MORE CONCEPTS BELOW
+  # ----------------------------------------------------------
+
+  - id: second-concept
+    name: Second Concept
+    description: >
+      Another concept in your graph.
+
+    prerequisites: []
+    difficulty: 2
+    tags: [example]
+
+    bloom_level: understand
+    assessment_modality: explanation
+
+    passing_threshold: 0.75
+
+    mastery_criteria:
+      - "Add your criteria here"
+
+    misconceptions:
+      - "Add misconceptions here"
+
+    decay_halflife_days: 14
+    max_attempts: 3
+    estimated_minutes: 20
