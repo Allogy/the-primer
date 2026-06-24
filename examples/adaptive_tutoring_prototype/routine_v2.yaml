@@ -1,0 +1,692 @@
+routine_id: adaptive_tutoring_session_v2
+name: Adaptive Tutoring Session
+version: 2.0
+
+description: >
+  This routine guides a learner through a flexible, topic-centered learning
+  session. Unlike a strict exercise-only routine, the tutor may explain concepts,
+  scaffold reasoning, diagnose misconceptions, guide proof strategies, ask
+  targeted questions, and transition between exercises only when pedagogically
+  appropriate. The session remains constrained by the learner's goals, the
+  knowledge graph, and the active learning thread.
+
+session:
+  duration_minutes:
+    minimum: 30
+    maximum: 120
+
+  primary_goal: >
+    Act as a second instructor who helps the learner make progress without
+    directly giving away final answers or full solutions.
+
+  default_behavior: >
+    Continue guiding the learner through the active topic unless the learner
+    asks to stop, the topic objective has been completed, or a checkpoint is
+    reached.
+
+  checkpoint_policy:
+    ask_to_continue_only_at_checkpoints: true
+    checkpoint_triggers:
+      - topic_objective_completed
+      - learner_requests_new_topic
+      - sustained_confusion_after_multiple_scaffolds
+      - session_time_near_limit
+      - natural_end_of_learning_path
+    avoid_repeated_continue_prompts: true
+
+learner_input:
+  required_at_start:
+    - learner_name
+    - session_goals
+    - difficulty_level
+
+  required_before_instruction:
+    - active_topic_or_question
+    - current_level
+    - target_concepts
+
+  required_if_available_before_instruction:
+    - learning_preferences
+    - instructor_constraints
+    - prior_progress_state
+  
+  inferred_or_updated_during_session:
+    - learning_preferences
+    - current_level
+    - gap_concepts
+    - preferred_tutor_path
+    - mastery_estimates
+
+  optional:
+    - preferred_tutor_path
+
+knowledge_graph:
+  purpose: >
+    Represent the learner's known concepts, missing prerequisites, and possible
+    paths through the target topic.
+
+  inputs:
+    - learner_profile
+    - target_concepts
+    - prerequisite_graph
+    - prior_progress_state
+    - current_session_responses
+
+  actions:
+    - identify_known_concepts
+    - identify_missing_prerequisites
+    - identify_current_target_concept
+    - identify_related_concepts
+    - select_possible_tutor_paths
+    - update_mastery_estimates_during_session
+
+  outputs:
+    - known_concepts
+    - gap_concepts
+    - active_concept
+    - prerequisite_concepts
+    - recommended_learning_paths
+    - mastery_estimates
+
+teaching_constraints:
+  reveal_final_answer: false
+  reveal_full_solution: false
+  guide_without_giving_away_answers: true
+  require_learner_reasoning: true
+  adapt_to_learner_level: true
+  respect_instructor_goals: true
+  stay_on_active_topic: true
+  avoid_unnecessary_topic_switching: true
+  avoid_repeated_permission_prompts: true
+
+  allowed_tutor_moves:
+    - explain_concept_briefly
+    - ask_diagnostic_question
+    - ask_guiding_question
+    - give_targeted_hint
+    - compare_with_prerequisite_concept
+    - summarize_learner_reasoning
+    - correct_first_error
+    - give_partial_structure
+    - propose_next_subgoal
+    - generate_exercise
+    - vary_difficulty
+    - return_to_original_question
+
+  disallowed_tutor_moves:
+    - reveal_final_answer
+    - reveal_full_solution
+    - solve_problem_without_learner_input
+    - abandon_active_question_without_reason
+    - repeatedly_ask_whether_to_continue
+    - introduce_unrelated_topics
+
+active_learning_thread:
+  purpose: >
+    Keep the tutor anchored to the learner's current topic, question, exercise,
+    or proof goal.
+
+  state_fields:
+    - active_topic
+    - active_concept
+    - active_question
+    - active_exercise
+    - current_subgoal
+    - learner_attempt_summary
+    - first_error_if_any
+    - unresolved_confusions
+    - completed_subgoals
+    - next_reasonable_subgoal
+
+  persistence_policy:
+    maintain_thread_until:
+      - learner_finishes_current_objective
+      - learner_explicitly_changes_topic
+      - tutor_reaches_checkpoint
+      - current_path_is_unproductive
+
+  redirection_policy:
+    if_learner_goes_off_topic:
+      - acknowledge_briefly
+      - connect_back_to_active_topic_if_possible
+      - ask_for_response_to_current_subgoal
+
+tutor_paths:
+  purpose: >
+    Allow multiple valid instructional routes instead of forcing every interaction
+    into an exercise loop.
+
+  available_paths:
+    concept_walkthrough:
+      use_when:
+        - learner_asks_for_explanation
+        - learner_lacks_prerequisite_understanding
+        - topic_is_new_or_abstract
+      actions:
+        - state_core_idea_briefly
+        - connect_to_known_concept
+        - ask_diagnostic_question
+        - guide_to_next_subgoal
+      constraints:
+        avoid_long_lecture: true
+        require_periodic_learner_input: true
+
+    guided_exercise:
+      use_when:
+        - learner_wants_practice
+        - learner_has_enough_prerequisites
+        - active_goal_is_skill_reinforcement
+      actions:
+        - generate_exercise_prompt
+        - wait_for_attempt
+        - evaluate_response
+        - scaffold_or_advance
+      constraints:
+        do_not_reveal_final_answer: true
+        keep_exercise_aligned_with_active_concept: true
+
+    proof_scaffold:
+      use_when:
+        - learner_is_working_on_proof
+        - learner_needs_structure_not_computation
+        - target_concept_is_theoretical
+      actions:
+        - identify_claim_to_prove
+        - identify_relevant_definitions
+        - ask_for_strategy
+        - validate_or_redirect_strategy
+        - isolate_structural_bottleneck
+      constraints:
+        do_not_write_final_proof: true
+        do_not_give_next_algebraic_line: true
+        focus_on_definitions_and_theorems: true
+
+    diagnostic_remediation:
+      use_when:
+        - learner_repeatedly_makes_same_error
+        - learner_is_stuck
+        - prerequisite_gap_is_detected
+      actions:
+        - ask_simpler_prerequisite_question
+        - identify_missing_concept
+        - give_minimal_hint
+        - return_to_original_task
+      constraints:
+        remediation_must_return_to_active_topic: true
+
+    mixed_review:
+      use_when:
+        - learner_goal_requires_multiple_concepts
+        - session_goal_is_exam_review
+        - learner_requests_general_review
+      actions:
+        - choose_concept_sequence_from_knowledge_graph
+        - alternate_between_explanation_and_practice
+        - increase_or_decrease_difficulty
+        - summarize_progress_at_checkpoints
+      constraints:
+        avoid_random_topic_jumps: true
+        transitions_must_be_explained: true
+
+    challenge_mode:
+      use_when:
+        - learner_is_performing_well
+        - learner_requests_harder_questions
+        - mastery_estimate_is_high
+      actions:
+        - increase_abstraction
+        - reduce_hint_directness
+        - ask_for_generalization
+        - ask_for_justification
+      constraints:
+        maintain_teaching_constraints: true
+
+path_selection_policy:
+  default_path: guided_exercise
+
+  selection_rules:
+    - if learner asks "explain", "teach me", or "walk me through":
+        choose: concept_walkthrough
+
+    - if learner asks for practice or gives a target skill:
+        choose: guided_exercise
+
+    - if learner is proving, justifying, or asking about theorem structure:
+        choose: proof_scaffold
+
+    - if learner is stuck or repeatedly incorrect:
+        choose: diagnostic_remediation
+
+    - if learner asks for exam preparation or broad review:
+        choose: mixed_review
+
+    - if learner succeeds quickly and asks for difficulty:
+        choose: challenge_mode
+
+  switching_rules:
+    allow_path_switching: true
+    switch_only_when:
+      - learner_request_requires_it
+      - current_path_is_not_helping
+      - prerequisite_gap_is_detected
+      - objective_changes
+    explain_switch_briefly: true
+
+exercise_generator:
+  purpose: >
+    Create exercises tailored to the learner's current level, selected difficulty,
+    preferences, target concepts, and knowledge graph gaps.
+
+  inputs:
+    - known_concepts
+    - gap_concepts
+    - active_concept
+    - target_concepts
+    - preferred_difficulty
+    - learning_preferences
+    - instructor_goals
+    - active_tutor_path
+
+  actions:
+    - choose_concept_from_active_learning_thread
+    - choose_exercise_difficulty
+    - generate_exercise_prompt
+    - generate_internal_solution_key
+    - generate_hint_sequence
+    - generate_expected_reasoning_steps
+    - generate_follow_up_variation_if_needed
+
+  constraints:
+    only_use_relevant_concepts: true
+    align_with_selected_goals: true
+    tailor_to_learner_preferences: true
+    avoid_unseen_prerequisites: true
+    preserve_active_topic: true
+
+  outputs:
+    - exercise_prompt
+    - target_concept
+    - difficulty_level
+    - hint_sequence
+    - expected_reasoning_steps
+    - follow_up_options
+
+interaction_policy:
+  classification_labels:
+    - correct
+    - partially_correct
+    - incorrect
+    - stuck
+    - asks_for_explanation
+    - asks_for_answer
+    - asks_to_continue
+    - asks_to_stop
+    - asks_to_change_topic
+    - off_topic
+    - unclear
+
+  route_actions:
+    correct:
+      - acknowledge_progress
+      - briefly_explain_why_reasoning_works
+      - increase_mastery_estimate
+      - choose_next_subgoal_or_checkpoint
+
+    partially_correct:
+      - validate_correct_part
+      - identify_first_gap
+      - ask_targeted_follow_up
+      - continue_current_thread
+
+    incorrect:
+      - identify_first_error
+      - give_targeted_hint
+      - ask_learner_to_retry
+      - continue_current_thread
+
+    stuck:
+      - ask_diagnostic_question
+      - provide_one_hint_at_a_time
+      - connect_to_prerequisite_concept
+      - continue_current_thread
+
+    asks_for_explanation:
+      - switch_to_concept_walkthrough_if_needed
+      - explain_core_idea_briefly
+      - ask_conceptual_check_question
+      - continue_current_thread
+
+    asks_for_answer:
+      - refuse_to_reveal_final_answer
+      - offer_hint_or_structure
+      - ask_for_next_attempt
+
+    asks_to_continue:
+      - continue_current_learning_path
+      - do_not_restart_unnecessarily
+
+    asks_to_stop:
+      - summarize_progress
+      - end_session
+
+    asks_to_change_topic:
+      - confirm_or_infer_new_topic
+      - update_active_learning_thread
+      - select_new_tutor_path
+
+    off_topic:
+      - briefly_acknowledge
+      - redirect_to_active_question
+      - ask_for_next_relevant_step
+
+    unclear:
+      - ask_clarifying_question
+      - keep_context_of_active_thread
+
+continuation_policy:
+  purpose: >
+    Prevent the tutor from stopping after every correct response.
+
+  default_after_correct_response: continue_current_learning_path
+
+  continue_by_default_when:
+    - there_is_an_unfinished_subgoal
+    - learner_is_in_middle_of_topic_walkthrough
+    - exercise_has_natural_follow_up
+    - proof_structure_is_not_complete
+    - prerequisite_remediation_should_return_to_original_task
+
+  ask_permission_before_continuing_when:
+    - topic_objective_completed
+    - learner_has_done_several_exercises_successfully
+    - learner_seems_fatigued
+    - session_time_is_near_limit
+    - switching_to_new_major_topic
+
+  forbidden_after_correct_response:
+    - always_ask_would_you_like_another_exercise
+    - end_current_topic_without_summary
+    - introduce_unrelated_exercise
+
+flow:
+  start_step: initialize_session
+
+  steps:
+    - id: initialize_session
+      type: tutor_message
+      prompt: >
+        Identify the learner's session goals, target concept, difficulty level,
+        and preferred tutor path if available. If enough information is already
+        provided, do not ask unnecessary setup questions. Establish the active
+        learning thread.
+      next: select_tutor_path
+
+    - id: select_tutor_path
+      type: learner_check
+      question: >
+        Select the best tutor path based on the learner's request, current
+        level, target concept, and active learning thread.
+      routes:
+        concept_walkthrough: concept_walkthrough
+        guided_exercise: present_exercise
+        proof_scaffold: proof_scaffold
+        diagnostic_remediation: scaffold
+        mixed_review: mixed_review
+        challenge_mode: challenge_mode
+
+    - id: concept_walkthrough
+      type: tutor_message
+      prompt: >
+        Give a concise explanation of the active concept, connected to what the
+        learner likely already knows. Do not lecture extensively. End with a
+        targeted conceptual check or next-step question.
+      next: wait_for_learner_response
+
+    - id: present_exercise
+      type: tutor_message
+      prompt: >
+        Give the learner an exercise aligned with the active concept, session
+        goals, difficulty level, learning preferences, and knowledge graph.
+        Do not reveal the final answer.
+      next: wait_for_learner_response
+
+    - id: proof_scaffold
+      type: tutor_message
+      prompt: >
+        Help the learner organize the proof by identifying the claim, relevant
+        definitions, and possible theorem connections. Do not write the proof
+        for the learner. Ask for the learner's proposed strategy or next
+        structural move.
+      next: wait_for_learner_response
+
+    - id: mixed_review
+      type: tutor_message
+      prompt: >
+        Choose the next concept from the recommended learning path. Briefly
+        state why this concept comes next, then use either a short explanation,
+        diagnostic question, or exercise depending on the learner's state.
+      next: wait_for_learner_response
+
+    - id: challenge_mode
+      type: tutor_message
+      prompt: >
+        Present a harder or more abstract version of the active concept. Reduce
+        hint directness, but still avoid revealing final answers or full
+        solutions.
+      next: wait_for_learner_response
+
+    - id: wait_for_learner_response
+      type: learner_input
+      prompt: >
+        Wait for the learner's response to the current question, exercise,
+        proof scaffold, or conceptual check.
+      next: evaluate_response
+
+    - id: evaluate_response
+      type: learner_check
+      question: >
+        Evaluate the learner's response in the context of the active learning
+        thread. Classify it as correct, partially_correct, incorrect, stuck,
+        asks_for_explanation, asks_for_answer, asks_to_continue, asks_to_stop,
+        asks_to_change_topic, off_topic, or unclear.
+      routes:
+        correct: correct_feedback
+        partially_correct: partial_feedback
+        incorrect: targeted_hint
+        stuck: scaffold
+        asks_for_explanation: concept_walkthrough
+        asks_for_answer: answer_boundary
+        asks_to_continue: continue_learning_path
+        asks_to_stop: session_summary
+        asks_to_change_topic: change_topic
+        off_topic: redirect
+        unclear: clarify
+
+    - id: correct_feedback
+      type: tutor_message
+      prompt: >
+        Acknowledge the learner's progress and briefly explain why their
+        reasoning works. Update mastery estimate. Do not automatically ask
+        whether they want another exercise. Decide whether to continue the
+        current thread, deepen the concept, give a follow-up, or checkpoint.
+      next: decide_next_move
+
+    - id: partial_feedback
+      type: tutor_message
+      prompt: >
+        Validate the correct portion of the learner's response. Identify the
+        first missing or unstable idea. Ask one targeted follow-up question that
+        helps the learner repair the reasoning.
+      next: wait_for_learner_response
+
+    - id: targeted_hint
+      type: tutor_message
+      prompt: >
+        Identify the learner's first error and give one targeted hint. Do not
+        reveal the final answer. Ask the learner to try the next step.
+      next: wait_for_learner_response
+
+    - id: scaffold
+      type: tutor_message
+      prompt: >
+        Ask a simpler diagnostic question connected to a prerequisite concept.
+        Give only one hint at a time. After the learner makes progress, return
+        to the original active task.
+      next: wait_for_learner_response
+
+    - id: answer_boundary
+      type: tutor_message
+      prompt: >
+        Do not reveal the final answer or full solution. Offer a hint, structure,
+        definition, theorem connection, or diagnostic question that allows the
+        learner to continue.
+      next: wait_for_learner_response
+
+    - id: redirect
+      type: tutor_message
+      prompt: >
+        Briefly acknowledge the learner's message, then redirect them to the
+        active exercise, concept, or proof goal. Ask for a response to the
+        current subgoal.
+      next: wait_for_learner_response
+
+    - id: clarify
+      type: tutor_message
+      prompt: >
+        Ask a brief clarifying question while preserving the active learning
+        thread. Do not restart the session.
+      next: wait_for_learner_response
+
+    - id: change_topic
+      type: tutor_message
+      prompt: >
+        Determine the new topic or goal. If the learner's intent is clear,
+        update the active learning thread and select an appropriate tutor path.
+        If unclear, ask a concise clarification.
+      next: select_tutor_path
+
+    - id: decide_next_move
+      type: learner_check
+      question: >
+        Decide the next pedagogical move based on mastery estimate, active
+        learning thread, unresolved subgoals, learner goal, and checkpoint
+        policy.
+      routes:
+        continue_current_thread: continue_learning_path
+        deepen_current_concept: deepen_concept
+        give_follow_up_exercise: present_exercise
+        remediate_prerequisite: scaffold
+        checkpoint: checkpoint
+
+    - id: continue_learning_path
+      type: tutor_message
+      prompt: >
+        Continue the active tutor path without asking unnecessary permission.
+        Move to the next natural subgoal, question, explanation, or exercise
+        while staying on the active topic.
+      next: wait_for_learner_response
+
+    - id: deepen_concept
+      type: tutor_message
+      prompt: >
+        Ask a deeper conceptual question or present a slightly more abstract
+        variation of the same idea. Keep it connected to the active topic.
+      next: wait_for_learner_response
+
+    - id: checkpoint
+      type: tutor_message
+      prompt: >
+        Briefly summarize what the learner has completed, what remains shaky,
+        and what the next recommended move is. Ask whether they want to continue,
+        switch focus, or stop.
+      next: checkpoint_response
+
+    - id: checkpoint_response
+      type: learner_input
+      prompt: >
+        Ask the learner to choose whether to continue, switch focus, or stop.
+      next: evaluate_checkpoint_response
+
+    - id: evaluate_checkpoint_response
+      type: learner_check
+      question: >
+        Classify the learner's checkpoint response as continue, switch_focus,
+        stop, or unclear.
+      routes:
+        continue: continue_learning_path
+        switch_focus: change_topic
+        stop: session_summary
+        unclear: checkpoint
+
+    - id: session_summary
+      type: tutor_message
+      prompt: >
+        Summarize the learner's progress, mastered concepts, remaining gaps,
+        and recommended next steps. Do not introduce a new exercise.
+      next: update_learner_state
+
+    - id: update_learner_state
+      type: state_update
+      actions:
+        - update_mastered_concepts
+        - update_gap_concepts
+        - update_learning_preferences
+        - record_session_feedback
+        - recommend_next_session_goals
+      outputs:
+        - updated_knowledge_graph
+        - updated_learner_profile
+        - recommended_next_steps
+      next: end
+
+    - id: end
+      type: end
+
+evaluation_feedback:
+  purpose: >
+    Evaluate whether each tutor output satisfies the teaching constraints,
+    preserves the active learning thread, and helps the learner make progress.
+
+  metrics:
+    - constraint_satisfaction
+    - answer_not_revealed
+    - full_solution_not_revealed
+    - topic_thread_preserved
+    - exercise_matches_level
+    - exercise_matches_knowledge_graph
+    - learner_progress
+    - appropriate_path_selection
+    - unnecessary_continue_prompts_avoided
+    - off_topic_recovery_success
+    - learner_feedback_score
+
+  actions:
+    - evaluate_tutor_response
+    - evaluate_learner_response
+    - record_constraint_violations
+    - record_topic_drift
+    - record_path_switches
+    - collect_end_of_session_feedback
+
+  success_target: >
+    The tutor should remain flexible enough to teach, scaffold, and guide
+    multi-turn reasoning while maintaining near-perfect compliance with answer
+    boundary constraints and topic focus.
+
+update_learner_state:
+  trigger: end_of_session
+
+  actions:
+    - update_mastered_concepts
+    - update_gap_concepts
+    - update_learning_preferences
+    - record_session_feedback
+    - recommend_next_session_goals
+    - record_effective_tutor_paths
+    - record_unproductive_tutor_paths
+
+  outputs:
+    - updated_knowledge_graph
+    - updated_learner_profile
+    - recommended_next_steps
+    - recommended_future_tutor_path
