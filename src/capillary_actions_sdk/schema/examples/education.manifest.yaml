@@ -1,0 +1,20 @@
+domain: education
+subject: learner
+
+dimensions:
+  - name: comprehension
+    fields: [score, attempts, last_updated]
+    write: event-driven
+    decay: none
+  - name: engagement
+    fields: [session_count, avg_session_duration_s, last_active]
+    write: session-summary
+    decay: linear
+
+knowledge_base:
+  kb_names: [primer-education-kb]
+  retrieval: corrective_rag
+
+engagements:
+  - explain_concept
+  - quiz_learner
