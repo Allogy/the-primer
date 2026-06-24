@@ -1,3 +1,6 @@
+# Track 3 — Learner-Teaching ports
+from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
+
 # Track 2 — Learner Interaction ports
 from capillary_actions_sdk.ports.learner_interaction import (
     KnowledgeGraphPort,
@@ -72,4 +75,5 @@ __all__ = [
     # Track 3
     "ChannelAdapterPort",
     "ChannelSessionStorePort",
+    "KnowledgeBasePort",
 ]
