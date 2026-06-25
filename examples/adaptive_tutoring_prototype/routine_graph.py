@@ -2,15 +2,17 @@ import yaml
 from typing import TypedDict, Optional, Dict, Any, List
 
 from dotenv import load_dotenv
+from pathlib import Path
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
 from langchain_openrouter import ChatOpenRouter
 
 load_dotenv()
 
 # Helper function to load routine.yaml
-def load_routine(path: str):
-    with open(path, "r") as file:
+def load_routine(filename: str):
+    routine_path = Path(__file__).resolve().parent / filename
+    
+    with routine_path.open("r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 # Two different LLMs with different token usages
@@ -147,7 +149,9 @@ Do not reveal the full solution or final answer.
 def learner_input_node(state: TutorState):
     step = get_current_step(state)
 
-    learner_response = input("\nLearner: ")
+    learner_response = input(
+        f"\nTutor:\n{step['prompt']}\n\nLearner: "
+    )
 
     return {
         "learner_message": learner_response,
@@ -378,7 +382,7 @@ def build_graph():
     
     return graph.compile()
 
-def run_interactive_session():
+def run_interactive_session(N: int):
     """
     Run an interactive terminal-based tutoring session.
 
@@ -437,9 +441,12 @@ def run_interactive_session():
     }
 
     app = build_graph()
-    final_state = app.invoke(state)
+    final_state = app.invoke(
+        state,
+        config={"recursion_limit": N},
+    )
 
     print("\nSession Ended")
 
 if __name__ == "__main__":
-    run_interactive_session()
+    run_interactive_session(100)

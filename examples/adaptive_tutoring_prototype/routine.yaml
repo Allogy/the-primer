@@ -102,7 +102,6 @@ interaction_policy:
       - acknowledge_progress
       - briefly_explain_why_reasoning_works
       - increase_mastery_estimate
-      - offer_next_exercise
 
     incorrect:
       - identify_first_error
@@ -124,7 +123,6 @@ interaction_policy:
     - acknowledge_progress
     - briefly_explain_why_reasoning_works
     - increase_mastery_estimate
-    - offer_next_exercise
 
   when_learner_answers_incorrectly:
     - identify_first_error
@@ -153,7 +151,7 @@ flow:
     - id: wait_for_learner_response
       type: learner_input
       prompt: >
-        Ask the learner to respond to the current exercise or prompt.
+        Please respond to the current exercise or question.
       next: evaluate_response
 
     - id: evaluate_response
@@ -171,10 +169,10 @@ flow:
     - id: correct_feedback
       type: tutor_message
       prompt: >
-        Acknowledge the learner's progress and briefly explain why their
-        reasoning works. Do not over-explain or reveal unnecessary solution
-        details. Do not ask a new math question or continue the current exercise.
-        The next step will ask whether the learner wants another exercise.
+        Give one brief sentence acknowledging the learner's progress, followed by
+        one brief sentence explaining why their reasoning works. End the response
+        immediately after the explanation. Do not ask any question. Do not offer
+        another exercise. Do not mention that another step is coming.
       next: another_exercise
 
     - id: targeted_hint
@@ -202,7 +200,7 @@ flow:
     - id: another_exercise
       type: learner_input
       prompt: >
-        Great job with that question! Would you like another exercise to reinforce your learning?
+        Would you like another exercise to reinforce your learning?
         Please respond with "yes" or "no".
       next: check_another_exercise
 
