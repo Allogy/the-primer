@@ -7,7 +7,8 @@ dimensions:
     write: event-driven
     decay: none
   - name: savings_behavior
-    fields: [contributions_count, avg_contribution_amount, last_contribution_date]
+    fields:
+      [contributions_count, avg_contribution_amount, last_contribution_date]
     write: session-summary
     decay: linear
 
@@ -17,4 +18,4 @@ knowledge_base:
 
 engagements:
   - explain_concept
-  - quiz_learner
+  - assess_understanding
