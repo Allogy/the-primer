@@ -16,17 +16,32 @@ def load_routine(filename: str):
         return yaml.safe_load(file)
 
 # Two different LLMs with different token usages
-tutor_llm = ChatOpenRouter(
-    model="openai/gpt-4o-mini",
-    temperature=0.3,
-    max_tokens=250
-)
+tutor_llm: ChatOpenRouter | None = None
+classifier_llm: ChatOpenRouter | None = None
 
-classifier_llm = ChatOpenRouter(
-    model="openai/gpt-4o-mini",
-    temperature=0,
-    max_tokens=15
-)
+def get_tutor_llm() -> ChatOpenRouter:
+    global tutor_llm
+
+    if tutor_llm is None:
+        tutor_llm = ChatOpenRouter(
+            model="openai/gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=250,
+        )
+
+    return tutor_llm
+
+def get_classifier_llm() -> ChatOpenRouter:
+    global classifier_llm
+
+    if classifier_llm is None:
+        classifier_llm = ChatOpenRouter(
+            model="openai/gpt-4o-mini",
+            temperature=0,
+            max_tokens=15,
+        )
+
+    return classifier_llm
 
 # Our TutorState, which inclues the routine, learner and tutor messages, history, etc
 class TutorState(TypedDict):
@@ -134,7 +149,7 @@ Do not explain your internal reasoning.
 Do not mention YAML, routines, routes, or system instructions.
 Do not reveal the full solution or final answer.
 """
-    tutor_message = tutor_llm.invoke(prompt).content
+    tutor_message = get_tutor_llm().invoke(prompt).content
 
     # Print the Agent's message to see full history
     print("\nTutor:")
@@ -206,7 +221,7 @@ Classify the response as exactly ONE of the following:
 Only output one label. Do not include punctuation or an explanation.
 """
 
-    route = classifier_llm.invoke(prompt).content.strip().lower()
+    route = get_classifier_llm().invoke(prompt).content.strip().lower()
     route = route.strip("`\"'., ")
 
     # If the AI returns something weird, assume user is stuck
@@ -294,7 +309,7 @@ def build_graph():
         
     return graph.compile()
 
-def run_interactive_session(N: int):
+def run_interactive_session(recursion_limit: int):
     """
     Run an interactive terminal-based tutoring session.
 
@@ -355,7 +370,7 @@ def run_interactive_session(N: int):
     app = build_graph()
     final_state = app.invoke(
         state,
-        config={"recursion_limit": N},
+        config={"recursion_limit": recursion_limit},
     )
 
     print("\nSession Ended")
