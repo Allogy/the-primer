@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from capillary_actions_sdk.models.knowledge import RetrievedChunk
+
 
 class KnowledgeBasePort(ABC):
     """Outbound port for retrieving chunks from a domain knowledge base.
@@ -13,7 +15,9 @@ class KnowledgeBasePort(ABC):
     """
 
     @abstractmethod
-    async def retrieve(self, query: str, kb_names: list[str], top_k: int = 5) -> list[dict]:
+    async def retrieve(
+        self, query: str, kb_names: list[str], top_k: int = 5
+    ) -> list[RetrievedChunk]:
         """Retrieve the top-k chunks relevant to *query* from the named knowledge bases.
 
         Args:
@@ -22,6 +26,6 @@ class KnowledgeBasePort(ABC):
             top_k: Maximum number of chunks to return.
 
         Returns:
-            List of chunk dicts; downstream adapters map each to ``{text, score}``.
+            List of ``RetrievedChunk`` instances ordered by descending relevance score.
         """
         ...

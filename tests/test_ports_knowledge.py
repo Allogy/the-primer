@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from capillary_actions_sdk.models.knowledge import RetrievedChunk
 from capillary_actions_sdk.ports import KnowledgeBasePort as KnowledgeBasePortFromInit
 from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
 
@@ -22,8 +23,10 @@ class TestKnowledgeBasePortIsAbstract:
 
 
 class ConcreteKnowledgeBasePort(KnowledgeBasePort):
-    async def retrieve(self, query: str, kb_names: list[str], top_k: int = 5) -> list[dict]:
-        return [{'text': f'chunk for {query}', 'score': 1.0}]
+    async def retrieve(
+        self, query: str, kb_names: list[str], top_k: int = 5
+    ) -> list[RetrievedChunk]:
+        return [RetrievedChunk(text=f"chunk for {query}", score=1.0)]
 
 
 class TestConcreteKnowledgeBasePort:
@@ -31,11 +34,11 @@ class TestConcreteKnowledgeBasePort:
         port = ConcreteKnowledgeBasePort()
         assert isinstance(port, KnowledgeBasePort)
 
-    async def test_retrieve_returns_list_of_dicts(self):
+    async def test_retrieve_returns_list_of_retrieved_chunks(self):
         port = ConcreteKnowledgeBasePort()
-        results = await port.retrieve('what is interest?', ['primer-coop-finance-kb'], top_k=3)
+        results = await port.retrieve("what is interest?", ["primer-coop-finance-kb"], top_k=3)
         assert isinstance(results, list)
-        assert all(isinstance(chunk, dict) for chunk in results)
+        assert all(isinstance(chunk, RetrievedChunk) for chunk in results)
 
 
 # ---------------------------------------------------------------------------

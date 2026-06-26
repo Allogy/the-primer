@@ -1,3 +1,6 @@
+# Knowledge base models
+from capillary_actions_sdk.models.knowledge import RetrievedChunk
+
 # Track 1 — Student Model models
 # Track 2 — Learning Actions models
 from capillary_actions_sdk.models.learner_interaction import (
@@ -44,6 +47,8 @@ from capillary_actions_sdk.models.student_model import (
 )
 
 __all__ = [
+    # Knowledge base
+    "RetrievedChunk",
     # Track 1
     "Cohort",
     "CohortSnapshot",
