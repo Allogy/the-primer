@@ -184,7 +184,7 @@ def learner_check_node(state: TutorState):
     allowed_labels = "\n".join(f"- {label}" for label in routes)
 
     prompt = f"""
-You are evaluating a student's reponse during a tutoring session.
+You are evaluating a student's response during a tutoring session.
 
 Learner context:
 - Session goals: {state["session_goals"]}

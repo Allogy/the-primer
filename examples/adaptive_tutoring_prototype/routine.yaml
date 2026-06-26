@@ -91,12 +91,6 @@ exercise_generator:
     - expected_reasoning_steps
 
 interaction_policy:
-  classification_labels:
-    - correct
-    - incorrect
-    - stuck
-    - off_topic
-
   route_actions:
     correct:
       - acknowledge_progress
@@ -118,23 +112,6 @@ interaction_policy:
     off_topic:
       - redirect_to_current_exercise
       - ask_learner_to_retry
-
-  when_learner_answers_correctly:
-    - acknowledge_progress
-    - briefly_explain_why_reasoning_works
-    - increase_mastery_estimate
-
-  when_learner_answers_incorrectly:
-    - identify_first_error
-    - give_targeted_hint
-    - ask_learner_to_retry
-    - do_not_reveal_final_answer
-
-  when_learner_is_stuck:
-    - ask_diagnostic_question
-    - provide_one_hint_at_a_time
-    - connect_to_prerequisite_concept
-    - ask_for_next_step
 
 flow:
   start_step: present_exercise
