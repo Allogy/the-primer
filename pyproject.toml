@@ -29,6 +29,14 @@ dependencies = [
 Homepage = "https://github.com/Allogy/capillary-actions-sdk"
 Repository = "https://github.com/Allogy/capillary-actions-sdk"
 
+[project.optional-dependencies]
+adaptive-tutoring = [
+    "langchain-openrouter>=0.2.4",
+    "langgraph>=1.2.6",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/capillary_actions_sdk"]
 
