@@ -1,0 +1,230 @@
+routine_id: adaptive_exercise_session_v1
+name: Adaptive Exercise Session
+version: 1.0
+
+description: >
+  This routine guides a learner through a personalized learning session.
+  The learner provides their name, level, preferences, and goals. The system
+  uses a knowledge graph to identify familiar concepts and gaps, generates
+  constrained exercises, evaluates learner responses, and updates the learner's
+  state after the session.
+
+session:
+  duration_minutes:
+    minimum: 60
+    maximum: 120
+  goal: >
+    Act as a second instructor by guiding the learner without directly giving
+    away answers.
+
+learner_input:
+  required:
+    - learner_name
+    - session_goals
+    - difficulty_level
+  optional:
+    - current_level
+    - learning_preferences
+    - target_concepts
+
+knowledge_graph:
+  purpose: >
+    Represent concepts the learner is familiar with and identify gaps based on
+    known prerequisite relationships.
+  inputs:
+    - learner_profile
+    - target_concepts
+    - prerequisite_graph
+    - prior_progress_state
+  actions:
+    - identify_known_concepts
+    - identify_missing_prerequisites
+    - select_relevant_concepts_for_session
+  outputs:
+    - known_concepts
+    - gap_concepts
+    - recommended_learning_path
+
+teaching_constraints:
+  reveal_final_answer: false
+  reveal_full_solution: false
+  guide_without_giving_away_answers: true
+  require_step_by_step_reasoning: true
+  adapt_to_learner_level: true
+  respect_instructor_goals: true
+
+  constrained_by:
+    - learner_current_level
+    - knowledge_graph
+    - target_concepts
+    - difficulty_level
+    - instructor_goals
+    - session_time_limit
+
+exercise_generator:
+  purpose: >
+    Create exercises tailored to the learner's current level, selected difficulty,
+    preferences, target concepts, and knowledge graph gaps.
+  inputs:
+    - known_concepts
+    - gap_concepts
+    - target_concepts
+    - preferred_difficulty
+    - learning_preferences
+    - instructor_goals
+  actions:
+    - choose_concept_from_knowledge_graph
+    - choose_exercise_difficulty
+    - generate_exercise_prompt
+    - generate_internal_solution_key
+    - generate_hint_sequence
+  constraints:
+    only_use_concepts_in_knowledge_graph: true
+    align_with_selected_goals: true
+    tailor_to_learner_preferences: true
+    avoid_unseen_prerequisites: true
+  outputs:
+    - exercise_prompt
+    - target_concept
+    - difficulty_level
+    - hint_sequence
+    - expected_reasoning_steps
+
+interaction_policy:
+  route_actions:
+    correct:
+      - acknowledge_progress
+      - briefly_explain_why_reasoning_works
+      - increase_mastery_estimate
+
+    incorrect:
+      - identify_first_error
+      - give_targeted_hint
+      - ask_learner_to_retry
+      - do_not_reveal_final_answer
+
+    stuck:
+      - ask_diagnostic_question
+      - provide_one_hint_at_a_time
+      - connect_to_prerequisite_concept
+      - ask_for_next_step
+
+    off_topic:
+      - redirect_to_current_exercise
+      - ask_learner_to_retry
+
+flow:
+  start_step: present_exercise
+
+  steps:
+    - id: present_exercise
+      type: tutor_message
+      prompt: >
+        Give the learner a simple exercise based on their session goals,
+        difficulty level, learning preferences, and target concepts.
+        Do not reveal the final answer.
+      next: wait_for_learner_response
+
+    - id: wait_for_learner_response
+      type: learner_input
+      prompt: >
+        Please respond to the current exercise or question.
+      next: evaluate_response
+
+    - id: evaluate_response
+      type: learner_check
+      question: >
+        Evaluate the learner's response to the current tutor message.
+        Use correct if the response is correct, incorrect if it attempts an
+        answer but is wrong, stuck if the learner cannot proceed, and off_topic
+        if the response is unrelated.
+      fallback_route: stuck
+      routes:
+        correct: correct_feedback
+        incorrect: targeted_hint
+        stuck: scaffold
+        off_topic: redirect
+
+    - id: correct_feedback
+      type: tutor_message
+      prompt: >
+        Give one brief sentence acknowledging the learner's progress, followed by
+        one brief sentence explaining why their reasoning works. End the response
+        immediately after the explanation. Do not ask any question. Do not offer
+        another exercise. Do not mention that another step is coming.
+      next: another_exercise
+
+    - id: targeted_hint
+      type: tutor_message
+      prompt: >
+        Identify the learner's first error and give one targeted hint.
+        Do not reveal the final answer. Ask the learner to try again.
+      next: wait_for_learner_response
+
+    - id: scaffold
+      type: tutor_message
+      prompt: >
+        Ask a simpler diagnostic question that connects to a prerequisite
+        concept. Give only one hint at a time and ask the learner for the
+        next step.
+      next: wait_for_learner_response
+
+    - id: redirect
+      type: tutor_message
+      prompt: >
+        Briefly redirect the learner back to the current exercise or concept.
+        Ask them to try responding again.
+      next: wait_for_learner_response
+    
+    - id: another_exercise
+      type: learner_input
+      prompt: >
+        Would you like another exercise to reinforce your learning?
+        Please respond with "yes" or "no".
+      next: check_another_exercise
+
+    - id: check_another_exercise
+      type: learner_check
+      question: >
+        Determine whether the learner wants another exercise.
+        Use yes if they want another exercise, no if they do not, and unclear
+        if their response does not answer the question.
+      fallback_route: unclear
+      routes:
+        "yes": present_exercise
+        "no": end
+        "unclear": another_exercise
+
+    - id: end
+      type: end
+
+evaluation_feedback:
+  purpose: >
+    Evaluate whether each agent output satisfies the teaching constraints and
+    whether the learner is making progress.
+  metrics:
+    - constraint_satisfaction
+    - answer_not_revealed
+    - exercise_matches_level
+    - exercise_matches_knowledge_graph
+    - learner_progress
+    - learner_feedback_score
+  actions:
+    - evaluate_agent_response
+    - evaluate_learner_response
+    - record_constraint_violations
+    - collect_end_of_session_feedback
+  success_target: near_perfect_constraint_satisfaction
+
+update_learner_state:
+  trigger: end_of_session
+  actions:
+    - update_mastered_concepts
+    - update_gap_concepts
+    - update_learning_preferences
+    - record_session_feedback
+    - recommend_next_session_goals
+  outputs:
+    - updated_knowledge_graph
+    - updated_learner_profile
+    - recommended_next_steps

@@ -31,6 +31,14 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
+[project.optional-dependencies]
+# Extra for the LangGraph adaptive-tutoring prototype (examples/adaptive_tutoring_prototype).
+# Install with: uv sync --extra adaptive-tutoring
+adaptive-tutoring = [
+    "langgraph>=1.2.6",
+    "langchain-openrouter>=0.2.4",
+]
+
 [project.urls]
 Homepage = "https://github.com/Allogy/the-primer"
 Repository = "https://github.com/Allogy/the-primer"
