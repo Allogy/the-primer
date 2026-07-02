@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.13, <4.0"
 
 [[package]]
@@ -26,9 +26,10 @@ wheels = [
 [[package]]
 name = "capillary-actions-sdk"
 version = "0.2.0"
-source = { git = "ssh://git@github.com/Allogy/capillary-actions-sdk.git?branch=main#c1d1f903fe0b77786dd25bb4890f7243f77ceed0" }
+source = { git = "https://github.com/Allogy/capillary-actions-sdk.git?branch=main#10038659847fe15506969e7dacaef9db36475f36" }
 dependencies = [
     { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [[package]]
@@ -749,7 +750,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "capillary-actions-sdk", git = "ssh://git@github.com/Allogy/capillary-actions-sdk.git?branch=main" },
+    { name = "capillary-actions-sdk", git = "https://github.com/Allogy/capillary-actions-sdk.git?branch=main" },
     { name = "langchain-openrouter", marker = "extra == 'adaptive-tutoring'", specifier = ">=0.2.4" },
     { name = "langgraph", marker = "extra == 'adaptive-tutoring'", specifier = ">=1.2.6" },
     { name = "openai", specifier = ">=1.0.0" },
