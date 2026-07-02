@@ -28,13 +28,17 @@ class FakeKnowledgeBase(KnowledgeBasePort):
     """
 
     def __init__(self, chunks: list[RetrievedChunk] | None = None) -> None:
-        self._chunks: list[RetrievedChunk] = chunks or []
+        self._chunks: list[RetrievedChunk] = sorted(
+            chunks or [], key=lambda c: c.score, reverse=True
+        )
         self.calls: list[tuple[str, list[str], int]] = []
 
     async def retrieve(
         self, query: str, kb_names: list[str], top_k: int = 5
     ) -> list[RetrievedChunk]:
-        self.calls.append((query, kb_names, top_k))
+        self.calls.append((query, list(kb_names), top_k))
+        if top_k <= 0:
+            return []
         return self._chunks[:top_k]
 
 

@@ -100,3 +100,43 @@ class TestFakeKnowledgeBase:
         kb = FakeKnowledgeBase([_chunk("text")])
         results = await kb.retrieve("query", ["kb"], top_k=0)
         assert results == []
+
+    async def test_retrieve_top_k_negative_returns_empty(self) -> None:
+        kb = FakeKnowledgeBase([_chunk("text")])
+        results = await kb.retrieve("query", ["kb"], top_k=-1)
+        assert results == []
+
+    # ------------------------------------------------------------------
+    # Ordering and isolation
+    # ------------------------------------------------------------------
+
+    async def test_retrieve_orders_by_descending_score_regardless_of_seed_order(
+        self,
+    ) -> None:
+        low = _chunk("low", score=0.1)
+        high = _chunk("high", score=0.9)
+        mid = _chunk("mid", score=0.5)
+        kb = FakeKnowledgeBase([low, high, mid])
+
+        results = await kb.retrieve("query", ["kb"], top_k=3)
+
+        assert results == [high, mid, low]
+
+    def test_seed_list_mutation_after_construction_does_not_affect_kb(self) -> None:
+        chunks = [_chunk("original")]
+        kb = FakeKnowledgeBase(chunks)
+
+        chunks.append(_chunk("appended"))
+
+        assert kb._chunks == [_chunk("original")]
+
+    async def test_kb_names_mutation_after_call_does_not_affect_recorded_call(
+        self,
+    ) -> None:
+        kb = FakeKnowledgeBase([_chunk("text")])
+        kb_names = ["kb-a"]
+
+        await kb.retrieve("query", kb_names, top_k=1)
+        kb_names.append("kb-b")
+
+        assert kb.calls == [("query", ["kb-a"], 1)]
