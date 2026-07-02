@@ -10,8 +10,20 @@ Owners:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
+from capillary_actions_sdk.events import (
+    AGUIEvent,
+    RunFinishedEvent,
+    RunStartedEvent,
+)
 from capillary_actions_sdk.models.knowledge import RetrievedChunk
 from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
+from capillary_actions_sdk.ports.platform import (
+    RunWorkflowPort,
+    RunWorkflowRequest,
+    RunWorkflowResponse,
+)
 
 
 class FakeKnowledgeBase(KnowledgeBasePort):
@@ -48,3 +60,25 @@ class FakeKnowledgeBase(KnowledgeBasePort):
 # capillary_actions_sdk.ports.platform and expose a .requests attribute for
 # assertion. See DS-W2 acceptance criteria.
 # ---------------------------------------------------------------------------
+class FakeRunWorkflowPort(RunWorkflowPort):
+    """Deterministic in-memory workflow runner for tests and offline demos."""
+
+    def __init__(self, response: RunWorkflowResponse) -> None:
+        self.response = response
+        self.requests: list[RunWorkflowRequest] = []
+
+    async def run_sync(self, request: RunWorkflowRequest) -> RunWorkflowResponse:
+        self.requests.append(request)
+        return self.response
+
+    async def run(self, request: RunWorkflowRequest) -> AsyncIterator[AGUIEvent]:
+        self.requests.append(request)
+
+        yield RunStartedEvent(
+            thread_id=request.thread_id,
+            run_id=self.response.run_id,
+        )
+        yield RunFinishedEvent(
+            thread_id=request.thread_id,
+            run_id=self.response.run_id,
+        )

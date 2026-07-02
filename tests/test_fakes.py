@@ -5,17 +5,17 @@ synchronous and streaming workflow behavior.
 """
 
 from __future__ import annotations
+
 from uuid import uuid4
 
-
 import pytest
-from capillary_actions_sdk.models.knowledge import RetrievedChunk
-from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
 from capillary_actions_sdk.events import (
     AGUIEventType,
     RunFinishedEvent,
     RunStartedEvent,
 )
+from capillary_actions_sdk.models.knowledge import RetrievedChunk
+from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
 from capillary_actions_sdk.ports.platform import (
     RunWorkflowPort,
     RunWorkflowRequest,
