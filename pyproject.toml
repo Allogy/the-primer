@@ -48,13 +48,13 @@ Repository = "https://github.com/Allogy/the-primer"
 # For local development against a sibling checkout, override with:
 #   [tool.uv.sources] capillary-actions-sdk = { path = "../capillary-actions-sdk", editable = true }
 [tool.uv.sources]
-capillary-actions-sdk = { git = "ssh://git@github.com/Allogy/capillary-actions-sdk.git", branch = "main" }
+capillary-actions-sdk = { git = "https://github.com/Allogy/capillary-actions-sdk.git", branch = "main" }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/the_primer"]
+packages = ["src/the_primer", "src/primer_core"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/the_primer"]
+include = ["src/the_primer", "src/primer_core"]
 
 [tool.ruff]
 line-length = 100
