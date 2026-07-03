@@ -29,6 +29,7 @@ dependencies = [
     # Demo runtime (main.py) — talks to an OpenAI-compatible endpoint.
     "openai>=1.0.0",
     "python-dotenv>=1.0.0",
+    "pydantic-ai>=2,<3",
 ]
 
 [project.optional-dependencies]

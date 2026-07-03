@@ -1,23 +1,49 @@
-"""Tests for primer_core.testing.fakes — TestFakeKnowledgeBase (KG-W2).
+"""Tests for the in-memory engine-port fakes in primer_core.testing.
 
-Covers all four BDD acceptance scenarios from KG-W2:
-  1. FakeKnowledgeBase is a real KnowledgeBasePort
-  2. retrieve returns canned RetrievedChunk objects
-  3. retrieve records its calls for assertion
-  4. retrieve honors top_k
+Covers FakeKnowledgeBase retrieval behavior and FakeRunWorkflowPort
+synchronous and streaming workflow behavior.
 """
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
+from capillary_actions_sdk.events import (
+    AGUIEventType,
+    RunFinishedEvent,
+    RunStartedEvent,
+)
 from capillary_actions_sdk.models.knowledge import RetrievedChunk
 from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
+from capillary_actions_sdk.ports.platform import (
+    RunWorkflowPort,
+    RunWorkflowRequest,
+    RunWorkflowResponse,
+)
 
-from primer_core.testing.fakes import FakeKnowledgeBase
+from primer_core.testing.fakes import FakeKnowledgeBase, FakeRunWorkflowPort
 
 
 def _chunk(text: str, score: float = 0.9) -> RetrievedChunk:
     return RetrievedChunk(text=text, score=score)
+
+
+def _workflow_request() -> RunWorkflowRequest:
+    return RunWorkflowRequest(
+        workflow_id=uuid4(),
+        thread_id="thread-123",
+        input_data={"concept": "limits"},
+        org_id=None,
+    )
+
+
+def _workflow_response() -> RunWorkflowResponse:
+    return RunWorkflowResponse(
+        run_id="run-123",
+        output={"result": "success"},
+        status="completed",
+    )
 
 
 class TestFakeKnowledgeBase:
@@ -140,3 +166,48 @@ class TestFakeKnowledgeBase:
         kb_names.append("kb-b")
 
         assert kb.calls == [("query", ["kb-a"], 1)]
+
+
+class TestFakeRunWorkflowPort:
+    def test_is_run_workflow_port(self) -> None:
+        runner = FakeRunWorkflowPort(_workflow_response())
+
+        assert isinstance(runner, RunWorkflowPort)
+
+    def test_requests_empty_before_running(self) -> None:
+        runner = FakeRunWorkflowPort(_workflow_response())
+
+        assert runner.requests == []
+
+    async def test_run_sync_records_request_and_returns_response(self) -> None:
+        request = _workflow_request()
+        response = _workflow_response()
+        runner = FakeRunWorkflowPort(response)
+
+        result = await runner.run_sync(request)
+
+        assert result is response
+        assert runner.requests == [request]
+
+    async def test_run_yields_started_then_finished(self) -> None:
+        request = _workflow_request()
+        response = _workflow_response()
+        runner = FakeRunWorkflowPort(response)
+
+        events = [event async for event in runner.run(request)]
+
+        assert len(events) == 2
+
+        assert isinstance(events[0], RunStartedEvent)
+        assert events[0].event_type == AGUIEventType.RUN_STARTED
+
+        assert isinstance(events[1], RunFinishedEvent)
+        assert events[1].event_type == AGUIEventType.RUN_FINISHED
+
+        assert events[0].thread_id == request.thread_id
+        assert events[1].thread_id == request.thread_id
+
+        assert events[0].run_id == response.run_id
+        assert events[1].run_id == response.run_id
+
+        assert runner.requests == [request]
