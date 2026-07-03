@@ -15,6 +15,7 @@ from capillary_actions_sdk.reference.in_memory_memory_store import InMemoryMemor
 from capillary_actions_sdk.schema.domain_schema import (
     DomainSchema,
     DimensionSpec,
+    KnowledgeBaseWiring,
     validate_memory_entry,
 )
 
@@ -36,6 +37,8 @@ class TestMemoryCoreWrite:
             domain="education",
             subject="learner",
             dimensions=[DimensionSpec(name="history", fields=["courses_completed"])],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
         )
         test_store = InMemoryMemoryStore()
 
@@ -55,7 +58,7 @@ class TestMemoryCoreWrite:
         result_entry = await test_core.write(subject_id=test_subject_id, entry=test_entry)
 
         assert test_entry == result_entry
-        assert test_store.get(test_subject_id) == [test_entry]
+        assert await test_store.get(test_subject_id) == [test_entry]
 
 
 class TestMemoryCoreIngest:
@@ -71,7 +74,13 @@ class TestMemoryCoreIngest:
         Then a MemoryEntry is returned with dimension "history", tier "long_term", and the same content
         And the entry is persisted to the store
         """
-        test_schema = DomainSchema(domain="education", subject="learner")
+        test_schema = DomainSchema(
+            domain="education",
+            subject="learner",
+            dimensions=[DimensionSpec(name="history", fields=["courses_completed"])],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
+        )
         test_store = InMemoryMemoryStore()
 
         test_subject_id = uuid4()
@@ -93,7 +102,7 @@ class TestMemoryCoreIngest:
         assert result_entry.dimension == "history"
         assert result_entry.tier == "long_term"
         assert result_entry.content == {"courses_completed": ["calc-1"]}
-        assert test_store.get(subject_id=test_subject_id) == [result_entry]
+        assert await test_store.get(subject_id=test_subject_id) == [result_entry]
 
     async def test_write_ingest_rejects_undeclared_dimension(self):
         """
@@ -109,6 +118,8 @@ class TestMemoryCoreIngest:
             domain="education",
             subject="learner",
             dimensions=[DimensionSpec(name="history", fields=["courses_completed"])],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
         )
         test_store = InMemoryMemoryStore()
 
@@ -141,6 +152,8 @@ class TestMemoryCoreIngest:
             domain="education",
             subject="learner",
             dimensions=[DimensionSpec(name="history", fields=["courses_completed", "exercises"])],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
         )
         test_store = InMemoryMemoryStore()
 
@@ -173,6 +186,8 @@ class TestMemoryCoreIngest:
             domain="education",
             subject="learner",
             dimensions=[DimensionSpec(name="history", fields=["courses_completed"])],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
         )
         test_store = InMemoryMemoryStore()
 
@@ -211,6 +226,8 @@ class TestMemoryCoreAssemble:
                 DimensionSpec(name="history", fields=["courses_completed"]),
                 DimensionSpec(name="math", fields=["courses_completed"]),
             ],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
         )
         test_store = InMemoryMemoryStore()
 
@@ -239,10 +256,10 @@ class TestMemoryCoreAssemble:
             },
         )
 
-        test_entry_1 = test_core.ingest(subject_id=test_subject_id, signal=test_preference_signal_1)
-        test_entry_2 = test_core.ingest(subject_id=test_subject_id, signal=test_preference_signal_2)
+        test_entry_1 = await test_core.ingest(subject_id=test_subject_id, signal=test_preference_signal_1)
+        test_entry_2 = await test_core.ingest(subject_id=test_subject_id, signal=test_preference_signal_2)
 
-        test_working_memory_assembly = test_core.assemble_working_memory(subject_id=test_subject_id)
+        test_working_memory_assembly = await test_core.assemble_working_memory(subject_id=test_subject_id)
 
         assert test_working_memory_assembly.learner_id == test_subject_id
         assert test_entry_1 in test_working_memory_assembly.entries
@@ -262,6 +279,8 @@ class TestMemoryCoreAssemble:
             domain="education",
             subject="learner",
             dimensions=[DimensionSpec(name="history", fields=["courses_completed"])],
+            knowledge_base=KnowledgeBaseWiring(kb_names=["primer-education-kb"]),
+            engagements=["tutor-concept"]
         )
         test_store = InMemoryMemoryStore()
 
@@ -279,10 +298,10 @@ class TestMemoryCoreAssemble:
             },
         )
 
-        test_core.write(subject_id=test_subject_id_A, entry=test_entry_A)
+        await test_core.write(subject_id=test_subject_id_A, entry=test_entry_A)
 
-        test_working_memory_assembly = test_core.assemble_working_memory(
+        test_working_memory_assembly = await test_core.assemble_working_memory(
             subject_id=test_subject_id_B
         )
 
-        assert len(test_working_memory_assembly) == 0
+        assert len(test_working_memory_assembly.entries) == 0
