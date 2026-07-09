@@ -80,11 +80,11 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
                 code=str(rc),
             )
             return
-        else:
-            for line in stdout.splitlines():
-                event = _parse_event_line(line)
-                if event is not None:
-                    yield event
+
+        for line in stdout.splitlines():
+            event = _parse_event_line(line)
+            if event is not None:
+                yield event
 
     async def run_sync(self, request: RunWorkflowRequest) -> RunWorkflowResponse:
         cli_args = [
@@ -101,11 +101,11 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
         rc, stdout, stderr = await self._exec_cmd(cli_args)
         if rc != 0:
             return RunWorkflowResponse(run_id="", output={"error": stderr}, status="failed")
-        else:
-            parsed = json.loads(stdout)
-            return RunWorkflowResponse(
-                run_id=parsed["run_id"], output=parsed["output"], status=parsed["status"]
-            )
+
+        parsed = json.loads(stdout)
+        return RunWorkflowResponse(
+            run_id=parsed["run_id"], output=parsed["output"], status=parsed["status"]
+        )
 
     async def resume(self, request: ResumeWorkflowRequest) -> AsyncIterator[AGUIEvent]:
         if request.decision == "approve":
@@ -143,7 +143,6 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
             return
 
         rc, stdout, stderr = await self._exec_cmd(cli_args)
-
         if rc != 0:
             yield RunErrorEvent(
                 thread_id=request.thread_id,
@@ -152,11 +151,11 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
                 code=str(rc),
             )
             return
-        else:
-            for line in stdout.splitlines():
-                event = _parse_event_line(line)
-                if event is not None:
-                    yield event
+
+        for line in stdout.splitlines():
+            event = _parse_event_line(line)
+            if event is not None:
+                yield event
 
     async def resume_sync(self, request: ResumeWorkflowRequest) -> ResumeWorkflowResponse:
         if request.decision == "approve":
@@ -188,12 +187,12 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
         rc, stdout, _stderr = await self._exec_cmd(cli_args)
         if rc != 0:
             return ResumeWorkflowResponse(run_id="", status="failed")
-        else:
-            parsed = json.loads(stdout)
-            return ResumeWorkflowResponse(
-                run_id=parsed["run_id"],
-                status=parsed["status"],
-            )
+
+        parsed = json.loads(stdout)
+        return ResumeWorkflowResponse(
+            run_id=parsed["run_id"],
+            status=parsed["status"],
+        )
 
     async def reject(self, request: ResumeWorkflowRequest) -> ResumeWorkflowResponse:
         cli_args = [
@@ -210,7 +209,6 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
             cli_args.extend(["--comment", request.comment])
 
         rc, stdout, _stderr = await self._exec_cmd(cli_args)
-
         if rc != 0:
             return ResumeWorkflowResponse(run_id="", status="failed")
 
