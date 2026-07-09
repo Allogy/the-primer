@@ -9,13 +9,14 @@ from capillary_actions_sdk.ports.platform import (
 )
 from primer_core.adapters.capillary.workflow_cli_runner import WorkflowCliRunner
 
+
 class FakeExec:
     def __init__(self, rc: int, stdout: str, stderr: str = ""):
         self.rc = rc
         self.stdout = stdout
         self.stderr = stderr
         self.calls = []
-    
+
     async def __call__(self, args: list[str]) -> tuple[int, str, str]:
         self.calls.append(args)
         return self.rc, self.stdout, self.stderr
@@ -31,8 +32,7 @@ def test_workflow_cli_runner_implements_frozen_ports() -> None:
 
 async def test_run_sync_shells_workflow_run_json_and_parses_response() -> None:
     fake_exec = FakeExec(
-        rc=0,
-        stdout='{"run_id": "run-123", "status": "completed", "output": {"answer":"42"}}'
+        rc=0, stdout='{"run_id": "run-123", "status": "completed", "output": {"answer":"42"}}'
     )
     input_data = {"question": "What is recursion?"}
     request = RunWorkflowRequest(
@@ -61,11 +61,7 @@ async def test_run_sync_shells_workflow_run_json_and_parses_response() -> None:
 
 
 async def test_run_sync_nonzero_exit_returns_failed_response() -> None:
-    fake_exec = FakeExec(
-        rc=2,
-        stdout="",
-        stderr="workflow failed"
-    )
+    fake_exec = FakeExec(rc=2, stdout="", stderr="workflow failed")
     input_data = {"question": "What is recursion?"}
     request = RunWorkflowRequest(
         workflow_id=uuid4(),
@@ -153,4 +149,3 @@ async def test_run_skips_blank_invalid_json_and_unknown_event_lines() -> None:
         AGUIEventType.TEXT_MESSAGE_CONTENT,
         AGUIEventType.RUN_FINISHED,
     ]
-

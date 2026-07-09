@@ -5,23 +5,21 @@ from capillary_actions_sdk.ports.platform import ResumeWorkflowRequest
 
 from primer_core.adapters.capillary.workflow_cli_runner import WorkflowCliRunner
 
+
 class FakeExec:
     def __init__(self, rc: int, stdout: str, stderr: str = ""):
         self.rc = rc
         self.stdout = stdout
         self.stderr = stderr
         self.calls = []
-    
+
     async def __call__(self, args: list[str]) -> tuple[int, str, str]:
         self.calls.append(args)
         return self.rc, self.stdout, self.stderr
-    
+
 
 async def test_resume_sync_approve_uses_workflow_review_approve_json() -> None:
-    fake_exec = FakeExec(
-        rc=0,
-        stdout='{"run_id": "run-123", "status": "completed"}'
-    )
+    fake_exec = FakeExec(rc=0, stdout='{"run_id": "run-123", "status": "completed"}')
     request = ResumeWorkflowRequest(
         workflow_run_id="run-123",
         thread_id="thread-1",
