@@ -150,3 +150,58 @@ async def test_run_skips_blank_invalid_json_and_unknown_event_lines() -> None:
         AGUIEventType.TEXT_MESSAGE_CONTENT,
         AGUIEventType.RUN_FINISHED,
     ]
+
+
+async def test_run_streams_text_message_start_content_and_end_events() -> None:
+    fake_exec = FakeExec(
+        rc=0,
+        stdout=(
+            '{"type": "RUN_STARTED", "thread_id": "thread-1", "run_id": "run-123"}\n'
+            '{"type": "TEXT_MESSAGE_START", "thread_id": "thread-1", "run_id": "run-123", '
+            '"message_id": "msg-1", "role": "assistant"}\n'
+            '{"type": "TEXT_MESSAGE_CONTENT", "thread_id": "thread-1", "run_id": "run-123", '
+            '"message_id": "msg-1", "content": "Hello"}\n'
+            '{"type": "TEXT_MESSAGE_END", "thread_id": "thread-1", "run_id": "run-123", '
+            '"message_id": "msg-1"}\n'
+            '{"type": "RUN_FINISHED", "thread_id": "thread-1", "run_id": "run-123"}\n'
+        ),
+    )
+    request = RunWorkflowRequest(
+        workflow_id=uuid4(),
+        thread_id="thread-1",
+        input_data={"question": "What is recursion?"},
+        org_id=None,
+    )
+
+    runner = WorkflowCliRunner(exec_cmd=fake_exec)
+    events = [event async for event in runner.run(request)]
+
+    assert [event.event_type for event in events] == [
+        AGUIEventType.RUN_STARTED,
+        AGUIEventType.TEXT_MESSAGE_START,
+        AGUIEventType.TEXT_MESSAGE_CONTENT,
+        AGUIEventType.TEXT_MESSAGE_END,
+        AGUIEventType.RUN_FINISHED,
+    ]
+
+
+async def test_run_nonzero_exit_yields_single_run_error_event() -> None:
+    fake_exec = FakeExec(
+        rc=2,
+        stdout="",
+        stderr="workflow failed",
+    )
+    request = RunWorkflowRequest(
+        workflow_id=uuid4(),
+        thread_id="thread-1",
+        input_data={"question": "What is recursion?"},
+        org_id=None,
+    )
+
+    runner = WorkflowCliRunner(exec_cmd=fake_exec)
+    events = [event async for event in runner.run(request)]
+
+    assert len(events) == 1
+    assert events[0].event_type == AGUIEventType.RUN_ERROR
+    assert events[0].thread_id == "thread-1"
+    assert events[0].run_id == ""

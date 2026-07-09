@@ -3,10 +3,13 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 from capillary_actions_sdk.events import (
     AGUIEvent,
+    AGUIEventType,
     RunErrorEvent,
     RunFinishedEvent,
     RunStartedEvent,
     TextMessageContentEvent,
+    TextMessageEndEvent,
+    TextMessageStartEvent,
 )
 from capillary_actions_sdk.ports.platform import (
     ResumeWorkflowPort,
@@ -16,8 +19,19 @@ from capillary_actions_sdk.ports.platform import (
     RunWorkflowRequest,
     RunWorkflowResponse,
 )
+from pydantic import ValidationError
 
 ExecCmd = Callable[[list[str]], Awaitable[tuple[int, str, str]]]
+
+
+_EVENT_CLASS_BY_TYPE: dict[AGUIEventType, type[AGUIEvent]] = {
+    AGUIEventType.RUN_STARTED: RunStartedEvent,
+    AGUIEventType.TEXT_MESSAGE_START: TextMessageStartEvent,
+    AGUIEventType.TEXT_MESSAGE_CONTENT: TextMessageContentEvent,
+    AGUIEventType.TEXT_MESSAGE_END: TextMessageEndEvent,
+    AGUIEventType.RUN_ERROR: RunErrorEvent,
+    AGUIEventType.RUN_FINISHED: RunFinishedEvent,
+}
 
 
 def _parse_event_line(line: str) -> AGUIEvent | None:
@@ -29,29 +43,22 @@ def _parse_event_line(line: str) -> AGUIEvent | None:
     except json.JSONDecodeError:
         return None
 
-    event_type = raw_event.get("type")
+    try:
+        event_type = AGUIEventType(raw_event.get("type"))
+    except ValueError:
+        return None
 
-    if event_type == "RUN_STARTED":
-        return RunStartedEvent(
-            thread_id=raw_event["thread_id"],
-            run_id=raw_event["run_id"],
-        )
+    event_class = _EVENT_CLASS_BY_TYPE.get(event_type)
+    if event_class is None:
+        return None
 
-    if event_type == "TEXT_MESSAGE_CONTENT":
-        return TextMessageContentEvent(
-            thread_id=raw_event["thread_id"],
-            run_id=raw_event["run_id"],
-            message_id=raw_event["message_id"],
-            content=raw_event["content"],
-        )
+    payload = {**raw_event, "event_type": event_type}
+    payload.pop("type", None)
 
-    if event_type == "RUN_FINISHED":
-        return RunFinishedEvent(
-            thread_id=raw_event["thread_id"],
-            run_id=raw_event["run_id"],
-        )
-
-    return None
+    try:
+        return event_class.model_validate(payload)
+    except ValidationError:
+        return None
 
 
 class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
