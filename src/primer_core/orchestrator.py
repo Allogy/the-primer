@@ -56,7 +56,7 @@ class EngagementOrchestrator:
         )
 
         return await self.runner.run_sync(request)
-    
+
     async def run_engagement_streaming(
         self,
         skill_name: str,
