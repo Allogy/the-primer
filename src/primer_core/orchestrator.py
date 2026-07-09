@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
