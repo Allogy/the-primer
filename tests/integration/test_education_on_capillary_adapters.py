@@ -54,7 +54,7 @@ def _optional_class(module_name: str, class_name: str):
         pytest.skip(f"{module_name}.{class_name} has not landed in this branch yet")
 
 
-async def test_week_3_gate_streams_education_engagement_with_workflow_cli_runner() -> None:
+async def test_week_3_gate_streams_education_engagement_through_workflow_runner_port() -> None:
     schema = load(str(_education_manifest_path()))
     subject_id = uuid4()
     fake_exec = FakeExec(

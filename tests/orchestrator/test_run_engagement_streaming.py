@@ -29,6 +29,7 @@ class RecordingStreamingRunner(RunWorkflowPort):
 
     async def run(self, request: RunWorkflowRequest) -> AsyncIterator[AGUIEvent]:
         self.requests.append(request)
+
         yield RunStartedEvent(thread_id=request.thread_id, run_id="run-123")
         yield TextMessageContentEvent(
             thread_id=request.thread_id,
@@ -42,9 +43,13 @@ class RecordingStreamingRunner(RunWorkflowPort):
 class RecordingEventStream:
     def __init__(self) -> None:
         self.events: list[AGUIEvent] = []
+        self.encoded_events: list[str] = []
 
-    async def send_event(self, event: AGUIEvent) -> None:
+    async def send_event(self, event: AGUIEvent) -> str:
         self.events.append(event)
+        encoded = f"event: {event.event_type.value}\n\n"
+        self.encoded_events.append(encoded)
+        return encoded
 
 
 def _skills() -> SkillRegistry:
@@ -94,7 +99,7 @@ async def test_run_engagement_streaming_yields_runner_events() -> None:
     assert request.org_id is None
 
 
-async def test_run_engagement_streaming_forwards_events_to_event_stream() -> None:
+async def test_run_engagement_streaming_serializes_events_with_event_stream() -> None:
     runner = RecordingStreamingRunner()
     event_stream = RecordingEventStream()
     orchestrator = EngagementOrchestrator(
@@ -116,6 +121,11 @@ async def test_run_engagement_streaming_forwards_events_to_event_stream() -> Non
     ]
 
     assert event_stream.events == events
+    assert event_stream.encoded_events == [
+        "event: RUN_STARTED\n\n",
+        "event: TEXT_MESSAGE_CONTENT\n\n",
+        "event: RUN_FINISHED\n\n",
+    ]
     assert [event.event_type for event in events] == [
         AGUIEventType.RUN_STARTED,
         AGUIEventType.TEXT_MESSAGE_CONTENT,
