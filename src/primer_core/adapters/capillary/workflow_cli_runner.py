@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any
 
 from capillary_actions_sdk.events import (
     AGUIEvent,
@@ -61,7 +62,31 @@ def _parse_event_line(line: str) -> AGUIEvent | None:
         return None
 
 
+def _parse_json_object(stdout: str) -> dict[str, Any] | None:
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(parsed, dict):
+        return None
+
+    return parsed
+
+
 class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
+    """Prototype workflow CLI runner over the frozen Primer/SDK ports.
+
+    This adapter exercises the runner/resume port seam using an injected
+    exec_cmd boundary so tests remain deterministic and subprocess-free.
+
+    It is not yet a live-compatible wrapper around the current workflow CLI.
+    The live CLI contract still needs reconciliation with the SDK ports:
+    resume/review commands require node_id, while ResumeWorkflowRequest does
+    not currently expose one, and the live run command does not expose the
+    machine-readable output shape assumed by this port.
+    """
+
     def __init__(self, exec_cmd: ExecCmd) -> None:
         self._exec_cmd = exec_cmd
 
@@ -107,19 +132,41 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
 
         rc, stdout, stderr = await self._exec_cmd(cli_args)
         if rc != 0:
-            return RunWorkflowResponse(run_id="", output={"error": stderr}, status="failed")
+            return RunWorkflowResponse(
+                run_id="",
+                output={"error": stderr},
+                status="failed",
+            )
 
-        parsed = json.loads(stdout)
-        return RunWorkflowResponse(
-            run_id=parsed["run_id"], output=parsed["output"], status=parsed["status"]
-        )
+        parsed = _parse_json_object(stdout)
+        if parsed is None:
+            return RunWorkflowResponse(
+                run_id="",
+                output={"error": "workflow returned invalid JSON"},
+                status="failed",
+            )
+
+        try:
+            return RunWorkflowResponse(
+                run_id=parsed["run_id"],
+                output=parsed["output"],
+                status=parsed["status"],
+            )
+        except KeyError as exc:
+            return RunWorkflowResponse(
+                run_id="",
+                output={"error": f"workflow response missing {exc.args[0]}"},
+                status="failed",
+            )
 
     async def resume(self, request: ResumeWorkflowRequest) -> AsyncIterator[AGUIEvent]:
+        workflow_run_id = str(request.workflow_run_id)
+
         if request.decision == "approve":
             cli_args = [
                 "workflow",
                 "review",
-                request.workflow_run_id,
+                workflow_run_id,
                 "--thread-id",
                 request.thread_id,
                 "--approve",
@@ -131,7 +178,7 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
             cli_args = [
                 "workflow",
                 "input",
-                request.workflow_run_id,
+                workflow_run_id,
                 "--thread-id",
                 request.thread_id,
                 "--data",
@@ -143,8 +190,8 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
         else:
             yield RunErrorEvent(
                 thread_id=request.thread_id,
-                run_id=request.workflow_run_id,
-                error="resume request must include a decision or input_data",
+                run_id=workflow_run_id,
+                error="resume request must include decision='approve' or input_data",
                 code="invalid_request",
             )
             return
@@ -153,7 +200,7 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
         if rc != 0:
             yield RunErrorEvent(
                 thread_id=request.thread_id,
-                run_id=request.workflow_run_id,
+                run_id=workflow_run_id,
                 error=stderr,
                 code=str(rc),
             )
@@ -165,11 +212,13 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
                 yield event
 
     async def resume_sync(self, request: ResumeWorkflowRequest) -> ResumeWorkflowResponse:
+        workflow_run_id = str(request.workflow_run_id)
+
         if request.decision == "approve":
             cli_args = [
                 "workflow",
                 "review",
-                request.workflow_run_id,
+                workflow_run_id,
                 "--thread-id",
                 request.thread_id,
                 "--approve",
@@ -180,7 +229,7 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
             cli_args = [
                 "workflow",
                 "input",
-                request.workflow_run_id,
+                workflow_run_id,
                 "--thread-id",
                 request.thread_id,
                 "--data",
@@ -195,32 +244,48 @@ class WorkflowCliRunner(RunWorkflowPort, ResumeWorkflowPort):
         if rc != 0:
             return ResumeWorkflowResponse(run_id="", status="failed")
 
-        parsed = json.loads(stdout)
-        return ResumeWorkflowResponse(
-            run_id=parsed["run_id"],
-            status=parsed["status"],
-        )
+        parsed = _parse_json_object(stdout)
+        if parsed is None:
+            return ResumeWorkflowResponse(run_id="", status="failed")
+
+        try:
+            return ResumeWorkflowResponse(
+                run_id=parsed["run_id"],
+                status=parsed["status"],
+            )
+        except KeyError:
+            return ResumeWorkflowResponse(run_id="", status="failed")
 
     async def reject(self, request: ResumeWorkflowRequest) -> ResumeWorkflowResponse:
+        workflow_run_id = str(request.workflow_run_id)
+
+        if request.comment is None:
+            return ResumeWorkflowResponse(run_id="", status="failed")
+
         cli_args = [
             "workflow",
             "review",
-            request.workflow_run_id,
+            workflow_run_id,
             "--thread-id",
             request.thread_id,
             "--reject",
+            "--comment",
+            request.comment,
             "--json",
         ]
-
-        if request.comment is not None:
-            cli_args.extend(["--comment", request.comment])
 
         rc, stdout, _stderr = await self._exec_cmd(cli_args)
         if rc != 0:
             return ResumeWorkflowResponse(run_id="", status="failed")
 
-        parsed = json.loads(stdout)
-        return ResumeWorkflowResponse(
-            run_id=parsed["run_id"],
-            status=parsed["status"],
-        )
+        parsed = _parse_json_object(stdout)
+        if parsed is None:
+            return ResumeWorkflowResponse(run_id="", status="failed")
+
+        try:
+            return ResumeWorkflowResponse(
+                run_id=parsed["run_id"],
+                status=parsed["status"],
+            )
+        except KeyError:
+            return ResumeWorkflowResponse(run_id="", status="failed")
