@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
 from capillary_actions_sdk.events import AGUIEventType
 from capillary_actions_sdk.ports.platform import RunWorkflowPort, RunWorkflowRequest
 
@@ -144,7 +146,10 @@ class TestRunWorkflowClientPort:
 
         assert response.status == "COMPLETED"
 
-    async def test_run_sync_returns_waiting_status_when_submit_fails(self) -> None:
+    async def test_run_sync_returns_waiting_status_when_submit_fails(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
         client = RecordingWorkflowClient(
             [
                 SimpleNamespace(
@@ -158,13 +163,26 @@ class TestRunWorkflowClientPort:
         port = RunWorkflowClientPort(client, poll_interval_seconds=0)
         request = _request({"student_response": "Associativity is required."})
 
+        caplog.set_level(logging.WARNING)
+
         response = await port.run_sync(request)
 
         assert response.status == "WAITING_FOR_INPUT"
+        assert "Failed to submit workflow input" in caplog.text
 
-    async def test_run_sync_allows_one_post_submit_waiting_poll(self) -> None:
+    async def test_run_sync_polls_until_completion_after_submit(self) -> None:
         client = RecordingWorkflowClient(
             [
+                SimpleNamespace(
+                    status="WAITING_FOR_INPUT",
+                    current_node="input-node",
+                    state={},
+                ),
+                SimpleNamespace(
+                    status="WAITING_FOR_INPUT",
+                    current_node="input-node",
+                    state={},
+                ),
                 SimpleNamespace(
                     status="WAITING_FOR_INPUT",
                     current_node="input-node",
@@ -183,6 +201,22 @@ class TestRunWorkflowClientPort:
         response = await port.run_sync(_request({"student_response": "answer"}))
 
         assert response.status == "COMPLETED"
+
+    async def test_run_sync_times_out_when_submitted_input_gate_never_advances(self) -> None:
+        client = RecordingWorkflowClient(
+            [
+                SimpleNamespace(
+                    status="WAITING_FOR_INPUT",
+                    current_node="input-node",
+                    state={},
+                )
+            ]
+        )
+        port = RunWorkflowClientPort(client, poll_interval_seconds=0, max_poll_seconds=0)
+
+        response = await port.run_sync(_request({"student_response": "answer"}))
+
+        assert response.status == "TIMED_OUT"
 
     async def test_run_returns_sdk_lifecycle_events(self) -> None:
         client = RecordingWorkflowClient(

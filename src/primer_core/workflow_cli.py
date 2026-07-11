@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from typing import Any, Protocol
 from uuid import UUID
@@ -54,6 +55,7 @@ class WorkflowInputClientInstance(WorkflowClientInstance, Protocol):
 _TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT", "TIMEOUT"}
 _FAILURE_STATUSES = {"FAILED", "CANCELLED", "TIMED_OUT", "TIMEOUT"}
 _HITL_STATUSES = {"WAITING_FOR_INPUT", "WAITING_FOR_REVIEW"}
+_logger = logging.getLogger(__name__)
 
 
 class RunWorkflowClientPort(RunWorkflowPort):
@@ -122,7 +124,7 @@ class RunWorkflowClientPort(RunWorkflowPort):
     ) -> RunWorkflowResponse:
         deadline = asyncio.get_running_loop().time() + self.max_poll_seconds
         submitted_initial_input = False
-        post_submit_wait_polls = 0
+        submitted_input_node_id: str | None = None
 
         while True:
             status_response = await asyncio.to_thread(
@@ -149,19 +151,45 @@ class RunWorkflowClientPort(RunWorkflowPort):
                             node_id=node_id,
                             input_data=request.input_data,
                         )
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        _logger.warning(
+                            "Failed to submit workflow input for run %s node %s",
+                            run_id,
+                            node_id,
+                            exc_info=exc,
+                        )
                     else:
-                        post_submit_wait_polls = 1
+                        submitted_input_node_id = node_id
                         await asyncio.sleep(self.poll_interval_seconds)
                         continue
 
-            if status == "WAITING_FOR_INPUT" and post_submit_wait_polls > 0:
-                post_submit_wait_polls -= 1
-                await asyncio.sleep(self.poll_interval_seconds)
-                continue
+            if status in _TERMINAL_STATUSES:
+                return RunWorkflowResponse(
+                    run_id=run_id,
+                    output=_output(status_response),
+                    status=status,
+                )
 
-            if status in _TERMINAL_STATUSES or status in _HITL_STATUSES:
+            if status == "WAITING_FOR_INPUT":
+                node_id = _waiting_input_node_id(status_response)
+                if submitted_input_node_id and node_id == submitted_input_node_id:
+                    if asyncio.get_running_loop().time() >= deadline:
+                        return RunWorkflowResponse(
+                            run_id=run_id,
+                            output=_output(status_response),
+                            status="TIMED_OUT",
+                        )
+
+                    await asyncio.sleep(self.poll_interval_seconds)
+                    continue
+
+                return RunWorkflowResponse(
+                    run_id=run_id,
+                    output=_output(status_response),
+                    status=status,
+                )
+
+            if status in _HITL_STATUSES:
                 return RunWorkflowResponse(
                     run_id=run_id,
                     output=_output(status_response),
