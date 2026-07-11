@@ -83,6 +83,15 @@ class RunWorkflowClientPort(RunWorkflowPort):
         yield RunStartedEvent(thread_id=request.thread_id, run_id=run_id)
 
         response = await self._poll_until_done(request, run_id)
+        if response.status.upper() in _HITL_STATUSES:
+            yield RunErrorEvent(
+                thread_id=request.thread_id,
+                run_id=run_id,
+                error=f"Workflow paused with status {response.status}",
+                code=response.status,
+            )
+            return
+
         if response.status.upper() in _FAILURE_STATUSES:
             yield RunErrorEvent(
                 thread_id=request.thread_id,
@@ -113,6 +122,7 @@ class RunWorkflowClientPort(RunWorkflowPort):
     ) -> RunWorkflowResponse:
         deadline = asyncio.get_running_loop().time() + self.max_poll_seconds
         submitted_initial_input = False
+        post_submit_wait_polls = 0
 
         while True:
             status_response = await asyncio.to_thread(
@@ -130,16 +140,26 @@ class RunWorkflowClientPort(RunWorkflowPort):
             ):
                 node_id = _waiting_input_node_id(status_response)
                 if node_id:
-                    await asyncio.to_thread(
-                        self.client.submit_input,
-                        request.workflow_id,
-                        run_id=run_id,
-                        node_id=node_id,
-                        input_data=request.input_data,
-                    )
                     submitted_initial_input = True
-                    await asyncio.sleep(self.poll_interval_seconds)
-                    continue
+                    try:
+                        await asyncio.to_thread(
+                            self.client.submit_input,
+                            request.workflow_id,
+                            run_id=run_id,
+                            node_id=node_id,
+                            input_data=request.input_data,
+                        )
+                    except Exception:
+                        pass
+                    else:
+                        post_submit_wait_polls = 1
+                        await asyncio.sleep(self.poll_interval_seconds)
+                        continue
+
+            if status == "WAITING_FOR_INPUT" and post_submit_wait_polls > 0:
+                post_submit_wait_polls -= 1
+                await asyncio.sleep(self.poll_interval_seconds)
+                continue
 
             if status in _TERMINAL_STATUSES or status in _HITL_STATUSES:
                 return RunWorkflowResponse(
@@ -162,7 +182,7 @@ def _status(status_response: Any) -> str:
     status = str(getattr(status_response, "status", "UNKNOWN")).upper()
     state = getattr(status_response, "state", {}) or {}
     execution_status = state.get("execution_status")
-    if execution_status:
+    if status == "RUNNING" and execution_status:
         return str(execution_status).upper()
     return status
 
@@ -177,7 +197,11 @@ def _output(status_response: Any) -> dict[str, Any]:
 
 def _waiting_input_node_id(status_response: Any) -> str | None:
     state = getattr(status_response, "state", {}) or {}
-    node_id = state.get("waiting_for_input_node_id") or state.get("current_node_id")
+    node_id = (
+        state.get("waiting_for_input_node_id")
+        or state.get("waiting_input_node_id")
+        or state.get("current_node_id")
+    )
     if node_id:
         return str(node_id)
 

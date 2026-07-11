@@ -14,8 +14,14 @@ from primer_core.workflow_cli import RunWorkflowClientPort
 class RecordingWorkflowClient:
     """Synchronous workflow-cli-shaped client fake."""
 
-    def __init__(self, statuses: list[SimpleNamespace]) -> None:
+    def __init__(
+        self,
+        statuses: list[SimpleNamespace],
+        *,
+        submit_error: Exception | None = None,
+    ) -> None:
         self.statuses = list(statuses)
+        self.submit_error = submit_error
         self.started: list[tuple[object, dict]] = []
         self.submitted_inputs: list[tuple[object, str, str, dict]] = []
 
@@ -36,6 +42,8 @@ class RecordingWorkflowClient:
         node_id: str,
         input_data: dict,
     ) -> None:
+        if self.submit_error:
+            raise self.submit_error
         self.submitted_inputs.append((workflow_id, run_id, node_id, input_data))
 
 
@@ -96,6 +104,86 @@ class TestRunWorkflowClientPort:
             (request.workflow_id, "run-123", "input-node", request.input_data)
         ]
 
+    async def test_run_sync_auto_submits_waiting_input_node_id_variant(self) -> None:
+        client = RecordingWorkflowClient(
+            [
+                SimpleNamespace(
+                    status="RUNNING",
+                    current_node=None,
+                    state={
+                        "execution_status": "WAITING_FOR_INPUT",
+                        "waiting_input_node_id": "input-node",
+                    },
+                ),
+                SimpleNamespace(status="COMPLETED", current_node=None, state={}),
+            ]
+        )
+        port = RunWorkflowClientPort(client, poll_interval_seconds=0)
+        request = _request({"student_response": "Associativity is required."})
+
+        response = await port.run_sync(request)
+
+        assert response.status == "COMPLETED"
+        assert client.submitted_inputs == [
+            (request.workflow_id, "run-123", "input-node", request.input_data)
+        ]
+
+    async def test_run_sync_ignores_stale_execution_status_after_completion(self) -> None:
+        client = RecordingWorkflowClient(
+            [
+                SimpleNamespace(
+                    status="COMPLETED",
+                    current_node=None,
+                    state={"execution_status": "RUNNING"},
+                )
+            ]
+        )
+        port = RunWorkflowClientPort(client, poll_interval_seconds=0)
+
+        response = await port.run_sync(_request())
+
+        assert response.status == "COMPLETED"
+
+    async def test_run_sync_returns_waiting_status_when_submit_fails(self) -> None:
+        client = RecordingWorkflowClient(
+            [
+                SimpleNamespace(
+                    status="WAITING_FOR_INPUT",
+                    current_node="input-node",
+                    state={},
+                )
+            ],
+            submit_error=RuntimeError("network error"),
+        )
+        port = RunWorkflowClientPort(client, poll_interval_seconds=0)
+        request = _request({"student_response": "Associativity is required."})
+
+        response = await port.run_sync(request)
+
+        assert response.status == "WAITING_FOR_INPUT"
+
+    async def test_run_sync_allows_one_post_submit_waiting_poll(self) -> None:
+        client = RecordingWorkflowClient(
+            [
+                SimpleNamespace(
+                    status="WAITING_FOR_INPUT",
+                    current_node="input-node",
+                    state={},
+                ),
+                SimpleNamespace(
+                    status="WAITING_FOR_INPUT",
+                    current_node="input-node",
+                    state={},
+                ),
+                SimpleNamespace(status="COMPLETED", current_node=None, state={}),
+            ]
+        )
+        port = RunWorkflowClientPort(client, poll_interval_seconds=0)
+
+        response = await port.run_sync(_request({"student_response": "answer"}))
+
+        assert response.status == "COMPLETED"
+
     async def test_run_returns_sdk_lifecycle_events(self) -> None:
         client = RecordingWorkflowClient(
             [SimpleNamespace(status="COMPLETED", current_node=None, state={})]
@@ -124,3 +212,17 @@ class TestRunWorkflowClientPort:
             AGUIEventType.RUN_STARTED,
             AGUIEventType.RUN_ERROR,
         ]
+
+    async def test_run_returns_error_event_for_waiting_status(self) -> None:
+        client = RecordingWorkflowClient(
+            [SimpleNamespace(status="WAITING_FOR_INPUT", current_node="input-node", state={})]
+        )
+        port = RunWorkflowClientPort(client, poll_interval_seconds=0)
+
+        events = [event async for event in port.run(_request())]
+
+        assert [event.event_type for event in events] == [
+            AGUIEventType.RUN_STARTED,
+            AGUIEventType.RUN_ERROR,
+        ]
+        assert events[-1].code == "WAITING_FOR_INPUT"
