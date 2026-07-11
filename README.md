@@ -166,6 +166,13 @@ pulls in the `openai` and `python-dotenv` runtime dependencies (declared in
 Without `OPENROUTER_API_KEY` set, the demo will fail when it calls the model.
 To use a different provider/model, edit the `base_url` and `MODEL` in `main.py`.
 
+## Workflow CLI Automation
+
+The Primer workflow skill at `src/primer_core/wdfs/tutor-concept.yaml` can be validated,
+pushed, and run headlessly with the platform workflow CLI. See
+[`docs/workflow-cli-headless.md`](docs/workflow-cli-headless.md) for the command sequence
+and example input payload.
+
 ## License
 
 [MIT](LICENSE)

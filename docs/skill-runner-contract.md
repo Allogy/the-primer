@@ -65,6 +65,11 @@ required for the Week 1 contract implementation.
 
 No new `WorkflowRunnerPort` will be introduced.
 
+For local automation, `primer_core.workflow_cli.RunWorkflowClientPort` adapts a
+workflow-cli-compatible client instance to `RunWorkflowPort`. This keeps Primer
+depending on the SDK port while allowing a concrete `WorkflowClient` object to be
+injected when the platform runtime is not wiring the port directly.
+
 ## EngagementOrchestrator constructor
 
 The frozen constructor is:

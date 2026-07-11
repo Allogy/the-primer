@@ -1,0 +1,16 @@
+{
+  "concept_id": "group",
+  "concept_name": "Group",
+  "bloom_level": "understand",
+  "assessment_modality": "explanation",
+  "mastery_criteria": [
+    "Explain that a group is a set with a binary operation satisfying closure, associativity, identity, and inverses.",
+    "Distinguish a group from a set that lacks one of the required axioms."
+  ],
+  "misconceptions": [
+    "A group is just any collection of objects.",
+    "Commutativity is required for every group."
+  ],
+  "passing_threshold": 0.75,
+  "student_response": "A group is a set with an operation where you can combine elements and stay in the set, there is an identity element, and each element has an inverse. I think associativity also has to hold, but commutativity is optional."
+}

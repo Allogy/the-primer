@@ -50,9 +50,52 @@ class TestSkillRegistry:
 
         assert {"name", "entry", "exit", "nodes"} <= document.keys()
         assert document["name"] == "tutor-concept"
+        assert document["version"] == 1
+        assert document["entry"] == "session_input"
+        assert document["exit"] == "session_result"
         assert isinstance(document["nodes"], dict)
         assert document["entry"] in document["nodes"]
         assert document["exit"] in document["nodes"]
+        assert isinstance(document["edges"], list)
+
+    def test_real_tutor_concept_supports_headless_workflow_cli_run(self) -> None:
+        repository_root = Path(__file__).resolve().parents[1]
+        wdf_path = repository_root / "src" / "primer_core" / "wdfs" / "tutor-concept.yaml"
+
+        registry = SkillRegistry()
+        registry.register("tutor-concept", str(wdf_path))
+
+        document = registry.load_wdf("tutor-concept")
+        nodes = document["nodes"]
+        input_nodes = [
+            node
+            for node in nodes.values()
+            if node["type"] == "structured_input" and node["execution_mode"] == "INPUT"
+        ]
+
+        assert len(input_nodes) == 1
+        assert document["entry"] == "session_input"
+        assert nodes["session_input"] is input_nodes[0]
+
+        schema = nodes["session_input"]["config"]["schema"]
+        assert {
+            "concept_id",
+            "concept_name",
+            "bloom_level",
+            "assessment_modality",
+            "mastery_criteria",
+            "student_response",
+        } <= set(schema["required"])
+
+        for node in nodes.values():
+            assert node["type"]
+            assert node["execution_mode"]
+            assert "config" in node
+
+        node_names = set(nodes)
+        for edge in document["edges"]:
+            assert edge["from"] in node_names
+            assert edge["to"] in node_names
 
     def test_register_and_get_returns_wdf_path(self, tutor_wdf: Path) -> None:
         registry = SkillRegistry()

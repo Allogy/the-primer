@@ -1,16 +1,188 @@
-# Tutor Concept Workflow Definition
-#
-# Defines the Week-2 `tutor-concept` skill used by SkillRegistry and
-# EngagementOrchestrator. This file intentionally contains only the minimal
-# WDF structure required by the frozen contract: name, entry, exit, and nodes.
-#
-# The in-memory FakeRunWorkflowPort does not execute these nodes during Week 2.
-# Node behavior can be expanded once the production WDF execution schema is introduced.
-
 name: tutor-concept
-entry: explain
-exit: complete
+description: Headless Primer tutoring workflow for workflow-cli automation.
+version: 1
+tags:
+  - primer
+  - tutoring
+  - headless
 
 nodes:
-  explain: {}
-  complete: {}
+  session_input:
+    type: structured_input
+    execution_mode: INPUT
+    label: Tutor Session Input
+    config:
+      schema:
+        type: object
+        required:
+          - concept_id
+          - concept_name
+          - bloom_level
+          - assessment_modality
+          - mastery_criteria
+          - student_response
+        properties:
+          concept_id:
+            type: string
+            minLength: 1
+          concept_name:
+            type: string
+            minLength: 1
+          bloom_level:
+            type: string
+            enum:
+              - remember
+              - understand
+              - apply
+              - analyze
+              - evaluate
+              - create
+          assessment_modality:
+            type: string
+            enum:
+              - recall
+              - explanation
+              - application
+              - project
+          mastery_criteria:
+            type: array
+            minItems: 1
+            items:
+              type: string
+          misconceptions:
+            type: array
+            items:
+              type: string
+            default: []
+          passing_threshold:
+            type: number
+            minimum: 0
+            maximum: 1
+            default: 0.75
+          student_response:
+            type: string
+            minLength: 1
+
+  tutor_assessment:
+    type: llm_call
+    execution_mode: MESSAGES
+    label: Teach, Probe, and Score
+    config:
+      model: us.anthropic.claude-sonnet-4-20250514-v1:0
+      temperature: 0.2
+      maxTokens: 2500
+      system_prompt: >-
+        You are Primer, a strict but supportive tutor. Run a single headless
+        tutoring turn for automation: teach the concept, ask one assessment
+        probe, score the supplied learner response, and explain the gate
+        decision. Return only JSON.
+      template: |
+        Concept ID: {{session_input.output.concept_id}}
+        Concept name: {{session_input.output.concept_name}}
+        Target Bloom level: {{session_input.output.bloom_level}}
+        Assessment modality: {{session_input.output.assessment_modality}}
+        Passing threshold: {{session_input.output.passing_threshold}}
+        Mastery criteria: {{session_input.output.mastery_criteria}}
+        Known misconceptions: {{session_input.output.misconceptions}}
+
+        Learner response to score:
+        {{session_input.output.student_response}}
+
+        Return ONLY valid JSON with this shape:
+        {
+          "concept_id": "<concept id>",
+          "teaching": "<short explanation>",
+          "probe": "<one question that tests the criteria>",
+          "rubric_scores": [
+            {
+              "criterion": "<criterion text>",
+              "score": 0.0,
+              "rationale": "<why this score was assigned>"
+            }
+          ],
+          "score": 0.0,
+          "bloom_level_demonstrated": "remember",
+          "passed": false,
+          "gate_decision": "pass|retry|escalate",
+          "rationale": "<brief assessment rationale>"
+        }
+
+  session_result:
+    type: structured_output
+    execution_mode: OUTPUT
+    label: Tutor Session Result
+    config:
+      model: us.anthropic.claude-sonnet-4-20250514-v1:0
+      primaryInput: "{{tutor_assessment.output.text}}"
+      system_prompt: >-
+        Normalize the tutor assessment into the requested JSON schema. Preserve
+        the assessment semantics; do not invent a higher score than the source
+        assessment supports.
+      schema:
+        type: object
+        required:
+          - concept_id
+          - teaching
+          - probe
+          - rubric_scores
+          - score
+          - bloom_level_demonstrated
+          - passed
+          - gate_decision
+          - rationale
+        properties:
+          concept_id:
+            type: string
+          teaching:
+            type: string
+          probe:
+            type: string
+          rubric_scores:
+            type: array
+            items:
+              type: object
+              required:
+                - criterion
+                - score
+                - rationale
+              properties:
+                criterion:
+                  type: string
+                score:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                rationale:
+                  type: string
+          score:
+            type: number
+            minimum: 0
+            maximum: 1
+          bloom_level_demonstrated:
+            type: string
+            enum:
+              - remember
+              - understand
+              - apply
+              - analyze
+              - evaluate
+              - create
+          passed:
+            type: boolean
+          gate_decision:
+            type: string
+            enum:
+              - pass
+              - retry
+              - escalate
+          rationale:
+            type: string
+
+edges:
+  - from: session_input
+    to: tutor_assessment
+  - from: tutor_assessment
+    to: session_result
+
+entry: session_input
+exit: session_result
