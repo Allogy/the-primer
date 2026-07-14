@@ -13,7 +13,7 @@ class FileMemoryStore(MemoryStorePort):
         try:
             with open(self.path, "r", encoding="utf-8") as json_file:
                 self._store = json.load(json_file)
-        except FileNotFoundError:
+        except (FileNotFoundError, json.JSONDecodeError):
             self._store = dict()
             with open(self.path, "w") as json_file:
                 json.dump(self._store, json_file)
