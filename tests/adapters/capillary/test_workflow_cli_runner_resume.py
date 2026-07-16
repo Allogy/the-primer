@@ -1,5 +1,5 @@
 import json
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from capillary_actions_sdk.events import AGUIEventType
 from capillary_actions_sdk.ports.platform import ResumeWorkflowRequest
@@ -19,33 +19,10 @@ class FakeExec:
         return self.rc, self.stdout, self.stderr
 
 
-def _resume_request(
-    *,
-    workflow_run_id: UUID,
-    thread_id: str,
-    decision: str | None,
-    input_data: dict | None,
-    comment: str | None,
-    node_id: str | None = None,
-) -> ResumeWorkflowRequest:
-    request = ResumeWorkflowRequest(
-        workflow_run_id=workflow_run_id,
-        thread_id=thread_id,
-        decision=decision,
-        input_data=input_data,
-        comment=comment,
-    )
-
-    if node_id is not None:
-        request.node_id = node_id
-
-    return request
-
-
 async def test_resume_sync_approve_uses_workflow_review_approve_json_yes() -> None:
     workflow_run_id = uuid4()
     fake_exec = FakeExec(rc=0, stdout='{"run_id": "run-123", "status": "completed"}')
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision="approve",
@@ -82,7 +59,7 @@ async def test_resume_sync_input_data_uses_workflow_input_data_json_yes() -> Non
         rc=0,
         stdout='{"run_id": "run-123", "status": "completed"}',
     )
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision=None,
@@ -116,7 +93,7 @@ async def test_resume_sync_input_data_uses_workflow_input_data_json_yes() -> Non
 async def test_resume_sync_nonzero_exit_returns_failed_response() -> None:
     workflow_run_id = uuid4()
     fake_exec = FakeExec(rc=2, stdout="", stderr="workflow failed")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision="approve",
@@ -144,7 +121,7 @@ async def test_resume_sync_nonzero_exit_returns_failed_response() -> None:
 
 async def test_resume_sync_invalid_json_returns_failed_response() -> None:
     fake_exec = FakeExec(rc=0, stdout="not-json")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=uuid4(),
         thread_id="thread-1",
         decision="approve",
@@ -162,7 +139,7 @@ async def test_resume_sync_invalid_json_returns_failed_response() -> None:
 
 async def test_resume_sync_missing_node_id_returns_failed_response_without_exec() -> None:
     fake_exec = FakeExec(rc=0, stdout='{"run_id": "run-123", "status": "completed"}')
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=uuid4(),
         thread_id="thread-1",
         decision="approve",
@@ -180,7 +157,7 @@ async def test_resume_sync_missing_node_id_returns_failed_response_without_exec(
 
 async def test_resume_sync_invalid_request_returns_failed_response_without_exec() -> None:
     fake_exec = FakeExec(rc=0, stdout='{"run_id": "run-123", "status": "completed"}')
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=uuid4(),
         thread_id="thread-1",
         decision=None,
@@ -203,7 +180,7 @@ async def test_reject_uses_workflow_review_reject_comment_json_yes() -> None:
         rc=0,
         stdout='{"run_id": "run-123", "status": "completed"}',
     )
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision=None,
@@ -241,7 +218,7 @@ async def test_reject_without_comment_returns_failed_response_without_exec() -> 
         rc=0,
         stdout='{"run_id": "run-123", "status": "completed"}',
     )
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=uuid4(),
         thread_id="thread-1",
         decision=None,
@@ -263,7 +240,7 @@ async def test_reject_without_node_id_returns_failed_response_without_exec() -> 
         rc=0,
         stdout='{"run_id": "run-123", "status": "completed"}',
     )
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=uuid4(),
         thread_id="thread-1",
         decision=None,
@@ -282,7 +259,7 @@ async def test_reject_without_node_id_returns_failed_response_without_exec() -> 
 async def test_reject_nonzero_exit_returns_failed_response() -> None:
     workflow_run_id = uuid4()
     fake_exec = FakeExec(rc=2, stdout="", stderr="workflow failed")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision=None,
@@ -311,7 +288,7 @@ async def test_reject_nonzero_exit_returns_failed_response() -> None:
 
 async def test_reject_invalid_json_returns_failed_response() -> None:
     fake_exec = FakeExec(rc=0, stdout="not-json")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=uuid4(),
         thread_id="thread-1",
         decision=None,
@@ -333,7 +310,7 @@ async def test_resume_yields_run_finished_after_successful_approve_review() -> N
         rc=0,
         stdout='{"run_id": "run-123", "status": "completed"}',
     )
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision="approve",
@@ -364,7 +341,7 @@ async def test_resume_yields_run_finished_after_successful_input_data() -> None:
         rc=0,
         stdout='{"run_id": "run-123", "status": "completed"}',
     )
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision=None,
@@ -392,7 +369,7 @@ async def test_resume_yields_run_finished_after_successful_input_data() -> None:
 async def test_resume_nonzero_exit_yields_single_run_error_event() -> None:
     workflow_run_id = uuid4()
     fake_exec = FakeExec(rc=2, stdout="", stderr="workflow failed")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision="approve",
@@ -413,7 +390,7 @@ async def test_resume_nonzero_exit_yields_single_run_error_event() -> None:
 async def test_resume_missing_node_id_yields_single_run_error_event_without_exec() -> None:
     workflow_run_id = uuid4()
     fake_exec = FakeExec(rc=0, stdout="")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision="approve",
@@ -434,7 +411,7 @@ async def test_resume_missing_node_id_yields_single_run_error_event_without_exec
 async def test_resume_invalid_request_yields_single_run_error_event_without_exec() -> None:
     workflow_run_id = uuid4()
     fake_exec = FakeExec(rc=0, stdout="")
-    request = _resume_request(
+    request = ResumeWorkflowRequest(
         workflow_run_id=workflow_run_id,
         thread_id="thread-1",
         decision=None,
