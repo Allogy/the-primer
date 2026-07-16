@@ -31,10 +31,14 @@ def test_workflow_cli_runner_implements_frozen_ports() -> None:
     assert isinstance(runner, ResumeWorkflowPort)
 
 
-async def test_run_sync_shells_workflow_run_json_and_parses_response() -> None:
+async def test_run_sync_shells_workflow_run_json_and_parses_final_response() -> None:
     fake_exec = FakeExec(
         rc=0,
-        stdout='{"run_id": "run-123", "status": "completed", "output": {"answer": "42"}}',
+        stdout=(
+            '{"type": "RUN_STARTED", "thread_id": "thread-1", "run_id": "run-123"}\n'
+            '{"run_id": "run-123", "workflow_id": "workflow-123", '
+            '"final_status": "completed", "node_outputs": {"answer": "42"}}\n'
+        ),
     )
     input_data = {"question": "What is recursion?"}
     request = RunWorkflowRequest(
@@ -57,6 +61,8 @@ async def test_run_sync_shells_workflow_run_json_and_parses_response() -> None:
     assert args[:2] == ["workflow", "run"]
     assert "--json" in args
     assert "--input" in args
+    assert "--thread-id" not in args
+    assert "--stream" not in args
 
     input_index = args.index("--input")
     assert json.loads(args[input_index + 1]) == input_data
@@ -75,6 +81,7 @@ async def test_run_sync_nonzero_exit_returns_failed_response() -> None:
     runner = WorkflowCliRunner(exec_cmd=fake_exec)
     response = await runner.run_sync(request)
 
+    assert response.run_id == ""
     assert response.status == "failed"
     assert response.output == {"error": "workflow failed"}
 
@@ -84,6 +91,8 @@ async def test_run_sync_nonzero_exit_returns_failed_response() -> None:
     assert args[:2] == ["workflow", "run"]
     assert "--json" in args
     assert "--input" in args
+    assert "--thread-id" not in args
+    assert "--stream" not in args
 
     input_index = args.index("--input")
     assert json.loads(args[input_index + 1]) == input_data
@@ -103,13 +112,13 @@ async def test_run_sync_invalid_json_returns_failed_response() -> None:
 
     assert response.run_id == ""
     assert response.status == "failed"
-    assert response.output == {"error": "workflow returned invalid JSON"}
+    assert response.output == {"error": "workflow returned invalid JSON response"}
 
 
-async def test_run_sync_missing_output_key_returns_failed_response() -> None:
+async def test_run_sync_missing_final_response_returns_failed_response() -> None:
     fake_exec = FakeExec(
         rc=0,
-        stdout='{"run_id": "run-123", "status": "completed"}',
+        stdout='{"type": "RUN_STARTED", "thread_id": "thread-1", "run_id": "run-123"}\n',
     )
     request = RunWorkflowRequest(
         workflow_id=uuid4(),
@@ -123,7 +132,7 @@ async def test_run_sync_missing_output_key_returns_failed_response() -> None:
 
     assert response.run_id == ""
     assert response.status == "failed"
-    assert response.output == {"error": "workflow response missing output"}
+    assert response.output == {"error": "workflow returned invalid JSON response"}
 
 
 async def test_run_streams_agui_events_from_ndjson_stdout() -> None:
@@ -134,6 +143,8 @@ async def test_run_streams_agui_events_from_ndjson_stdout() -> None:
             '{"type": "TEXT_MESSAGE_CONTENT", "thread_id": "thread-1", "run_id": "run-123", '
             '"message_id": "msg-1", "content": "Hello"}\n'
             '{"type": "RUN_FINISHED", "thread_id": "thread-1", "run_id": "run-123"}\n'
+            '{"run_id": "run-123", "workflow_id": "workflow-123", '
+            '"final_status": "completed", "node_outputs": {"answer": "42"}}\n'
         ),
     )
     input_data = {"question": "What is recursion?"}
@@ -154,15 +165,19 @@ async def test_run_streams_agui_events_from_ndjson_stdout() -> None:
     ]
 
     assert len(fake_exec.calls) == 1
-
     args = fake_exec.calls[0]
 
     assert args[:2] == ["workflow", "run"]
-    assert "--stream" in args
     assert "--json" in args
+    assert "--input" in args
+    assert "--thread-id" not in args
+    assert "--stream" not in args
+
+    input_index = args.index("--input")
+    assert json.loads(args[input_index + 1]) == input_data
 
 
-async def test_run_skips_blank_invalid_json_invalid_enum_and_unmapped_event_lines() -> None:
+async def test_run_skips_blank_invalid_json_invalid_enum_unmapped_and_final_result_lines() -> None:
     fake_exec = FakeExec(
         rc=0,
         stdout=(
@@ -175,6 +190,8 @@ async def test_run_skips_blank_invalid_json_invalid_enum_and_unmapped_event_line
             '{"type": "TEXT_MESSAGE_CONTENT", "thread_id": "thread-1", "run_id": "run-123", '
             '"message_id": "msg-1", "content": "Hello"}\n'
             '{"type": "RUN_FINISHED", "thread_id": "thread-1", "run_id": "run-123"}\n'
+            '{"run_id": "run-123", "workflow_id": "workflow-123", '
+            '"final_status": "completed", "node_outputs": {"answer": "42"}}\n'
         ),
     )
     request = RunWorkflowRequest(
