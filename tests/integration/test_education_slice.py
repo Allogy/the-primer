@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+import capillary_actions_sdk
 from capillary_actions_sdk.models.knowledge import RetrievedChunk
 from capillary_actions_sdk.models.student_model import PreferenceSignal
 from capillary_actions_sdk.ports.platform import RunWorkflowResponse
@@ -8,7 +9,6 @@ from capillary_actions_sdk.reference.in_memory_memory_store import InMemoryMemor
 from capillary_actions_sdk.schema.domain_schema import load
 from pydantic_ai.models.test import TestModel
 
-import capillary_actions_sdk
 from primer_core.interaction import InteractionAgent
 from primer_core.memory.core import MemoryCore
 from primer_core.orchestrator import EngagementOrchestrator
