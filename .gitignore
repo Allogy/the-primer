@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .DS_Store
+mem.json
 .Python
 .DS_Store
 build/
