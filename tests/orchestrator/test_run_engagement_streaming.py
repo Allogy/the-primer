@@ -58,7 +58,12 @@ class RecordingEventStream:
 
     async def send_event(self, event: AGUIEvent) -> str:
         self.send_event_called = True
-        return f"event: {event.event_type.value}\n\n"
+        self.events.append(event)
+
+        encoded = f"event: {event.event_type.value}\n\n"
+        self.encoded_events.append(encoded)
+
+        return encoded
 
 
 def _skills() -> SkillRegistry:
@@ -118,7 +123,7 @@ async def test_run_engagement_streaming_routes_events_through_event_stream() -> 
         skills=_skills(),
     )
 
-    encoded_events = [
+    events = [
         encoded
         async for encoded in orchestrator.run_engagement_streaming(
             "tutor-concept",
@@ -129,15 +134,18 @@ async def test_run_engagement_streaming_routes_events_through_event_stream() -> 
         )
     ]
 
-    assert encoded_events == [
-        "event: RUN_STARTED\n\n",
-        "event: TEXT_MESSAGE_CONTENT\n\n",
-        "event: RUN_FINISHED\n\n",
-    ]
-    assert event_stream.encoded_events == encoded_events
-    assert [event.event_type for event in event_stream.events] == [
+    assert all(isinstance(event, AGUIEvent) for event in events)
+
+    assert [event.event_type for event in events] == [
         AGUIEventType.RUN_STARTED,
         AGUIEventType.TEXT_MESSAGE_CONTENT,
         AGUIEventType.RUN_FINISHED,
     ]
-    assert event_stream.send_event_called is False
+
+    assert event_stream.encoded_events == [
+        "event: RUN_STARTED\n\n",
+        "event: TEXT_MESSAGE_CONTENT\n\n",
+        "event: RUN_FINISHED\n\n",
+    ]
+
+    assert event_stream.send_event_called is True

@@ -63,7 +63,7 @@ class EngagementOrchestrator:
         thread_id: str,
         input_data: dict | None = None,
         event_stream: EventStreamPort | None = None,
-    ) -> AsyncIterator[AGUIEvent | str]:
+    ) -> AsyncIterator[AGUIEvent]:
         workflow_id = self.skills.workflow_id(skill_name)
         request = RunWorkflowRequest(
             workflow_id=workflow_id,
@@ -74,10 +74,8 @@ class EngagementOrchestrator:
 
         events = self.runner.run(request)
 
-        if event_stream is None:
-            async for event in events:
-                yield event
-            return
+        async for event in events:
+            if event_stream is not None:
+                await event_stream.send_event(event)
 
-        async for encoded_event in event_stream.stream_events(events):
-            yield encoded_event
+            yield event
