@@ -4,7 +4,12 @@ from collections.abc import AsyncIterator
 from typing import cast
 from uuid import uuid4
 
-from capillary_actions_sdk.events import AGUIEvent
+from capillary_actions_sdk.events import (
+    AGUIEvent,
+    RunFinishedEvent,
+    RunStartedEvent,
+    TextMessageContentEvent,
+)
 from capillary_actions_sdk.ports.memory import MemoryStorePort
 from capillary_actions_sdk.ports.platform import (
     RunWorkflowPort,
@@ -47,6 +52,42 @@ class RecordingRunner(RunWorkflowPort):
     ) -> AsyncIterator[AGUIEvent]:
         raise AssertionError("run_engagement should not call the streaming runner")
         yield  # pragma: no cover
+
+
+class RecordingHookStreamingRunner(RunWorkflowPort):
+    def __init__(self, calls: list[str]) -> None:
+        self.calls = calls
+        self.requests: list[RunWorkflowRequest] = []
+
+    async def run_sync(
+        self,
+        request: RunWorkflowRequest,
+    ) -> RunWorkflowResponse:
+        raise AssertionError("run_engagement_streaming should not call run_sync")
+
+    async def run(
+        self,
+        request: RunWorkflowRequest,
+    ) -> AsyncIterator[AGUIEvent]:
+        self.calls.append("runner-start")
+        self.requests.append(request)
+
+        yield RunStartedEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+        )
+        yield TextMessageContentEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+            message_id="message-1",
+            content="Hello learner",
+        )
+        yield RunFinishedEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+        )
+
+        self.calls.append("runner-finished")
 
 
 def _schema() -> DomainSchema:
@@ -174,3 +215,80 @@ async def test_run_engagement_remains_compatible_without_hooks() -> None:
 
     assert len(runner.requests) == 1
     assert runner.requests[0].input_data == {}
+
+
+async def test_run_engagement_streaming_fires_hooks_around_typed_events() -> None:
+    calls: list[str] = []
+    contexts: list[HookContext] = []
+    after_payloads: list[dict] = []
+
+    schema = _schema()
+    memory = _memory(schema)
+    hooks = HookRegistry()
+    runner = RecordingHookStreamingRunner(calls)
+
+    async def record_before(ctx: HookContext) -> None:
+        calls.append("before")
+        contexts.append(ctx)
+
+    async def record_after(ctx: HookContext) -> None:
+        calls.append("after")
+        contexts.append(ctx)
+        after_payloads.append(dict(ctx.payload))
+
+    hooks.register(HookEvent.BEFORE_ENGAGEMENT, record_before)
+    hooks.register(HookEvent.AFTER_ENGAGEMENT, record_after)
+
+    orchestrator = EngagementOrchestrator(
+        schema=schema,
+        runner=runner,
+        memory=memory,
+        skills=_skills(),
+        hooks=hooks,
+    )
+
+    subject_id = uuid4()
+    input_data = {"question": "What is recursion?"}
+    events: list[AGUIEvent] = []
+
+    async for event in orchestrator.run_engagement_streaming(
+        skill_name="tutor-concept",
+        subject_id=subject_id,
+        thread_id="thread-1",
+        input_data=input_data,
+    ):
+        events.append(event)
+        calls.append(f"consumer-{event.event_type.value}")
+
+    assert calls == [
+        "before",
+        "runner-start",
+        "consumer-RUN_STARTED",
+        "consumer-TEXT_MESSAGE_CONTENT",
+        "consumer-RUN_FINISHED",
+        "runner-finished",
+        "after",
+    ]
+
+    assert len(events) == 3
+    assert all(isinstance(event, AGUIEvent) for event in events)
+
+    assert len(contexts) == 2
+    assert contexts[0] is contexts[1]
+
+    for context in contexts:
+        assert context.subject_id == subject_id
+        assert context.schema is schema
+        assert context.engagement == "tutor-concept"
+        assert context.memory is memory
+
+    assert after_payloads == [
+        {
+            "input": input_data,
+            "outcome": events,
+        }
+    ]
+
+    assert len(runner.requests) == 1
+    assert runner.requests[0].thread_id == "thread-1"
+    assert runner.requests[0].input_data == input_data

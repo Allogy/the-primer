@@ -94,7 +94,9 @@ class EngagementOrchestrator:
         input_data: dict | None = None,
         event_stream: EventStreamPort | None = None,
     ) -> AsyncIterator[AGUIEvent]:
+        """Run an engagement while yielding typed workflow events."""
         workflow_id = self.skills.workflow_id(skill_name)
+
         request = RunWorkflowRequest(
             workflow_id=workflow_id,
             thread_id=thread_id,
@@ -102,10 +104,37 @@ class EngagementOrchestrator:
             org_id=None,
         )
 
+        context = None
+
+        if self.hooks is not None:
+            context = HookContext(
+                subject_id=subject_id,
+                schema=self.schema,
+                engagement=skill_name,
+                payload={"input": request.input_data},
+                memory=self.memory,
+            )
+
+            await self.hooks.fire(
+                HookEvent.BEFORE_ENGAGEMENT,
+                context,
+            )
+
         events = self.runner.run(request)
+        streamed_events: list[AGUIEvent] = []
 
         async for event in events:
+            streamed_events.append(event)
+
             if event_stream is not None:
                 await event_stream.send_event(event)
 
             yield event
+
+        if self.hooks is not None and context is not None:
+            context.payload["outcome"] = streamed_events
+
+            await self.hooks.fire(
+                HookEvent.AFTER_ENGAGEMENT,
+                context,
+            )
