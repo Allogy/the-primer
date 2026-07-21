@@ -14,6 +14,7 @@ from capillary_actions_sdk.ports.platform import (
     RunWorkflowResponse,
 )
 
+from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
 from primer_core.skills import SkillRegistry
 
 if TYPE_CHECKING:
@@ -31,11 +32,13 @@ class EngagementOrchestrator:
         runner: RunWorkflowPort,
         memory: MemoryCore,
         skills: SkillRegistry,
+        hooks: HookRegistry | None = None,
     ) -> None:
         self.schema = schema
         self.runner = runner
         self.memory = memory
         self.skills = skills
+        self.hooks = hooks
 
     async def run_engagement(
         self,
@@ -54,7 +57,34 @@ class EngagementOrchestrator:
             org_id=None,
         )
 
-        return await self.runner.run_sync(request)
+        context = None
+        if self.hooks is not None:
+            context = HookContext(
+                subject_id=subject_id,
+                schema=self.schema,
+                engagement=skill_name,
+                payload={"input": request.input_data},
+                memory=self.memory,
+            )
+
+            await self.hooks.fire(
+                HookEvent.BEFORE_ENGAGEMENT,
+                context,
+            )
+
+        response = await self.runner.run_sync(request)
+
+        if self.hooks is not None and context is not None:
+            context.payload["outcome"] = response.output
+            context.payload["status"] = response.status
+            context.payload["run_id"] = response.run_id
+
+            await self.hooks.fire(
+                HookEvent.AFTER_ENGAGEMENT,
+                context,
+            )
+
+        return response
 
     async def run_engagement_streaming(
         self,

@@ -1,19 +1,15 @@
 """Domain-agnostic engagement hooks."""
 
-from __future__ import annotations
-
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID
 
+from capillary_actions_sdk.schema import DomainSchema
 from pydantic import BaseModel, ConfigDict, Field
 
-if TYPE_CHECKING:
-    from capillary_actions_sdk.schema import DomainSchema
-
-    from primer_core.memory import MemoryCore
+from primer_core.memory import MemoryCore
 
 
 class HookEvent(StrEnum):
