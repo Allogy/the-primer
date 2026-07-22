@@ -2,7 +2,7 @@
 
 from collections.abc import AsyncIterator
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from capillary_actions_sdk.events import (
     AGUIEvent,
@@ -10,6 +10,7 @@ from capillary_actions_sdk.events import (
     RunStartedEvent,
     TextMessageContentEvent,
 )
+from capillary_actions_sdk.models.student_model import PreferenceSignal
 from capillary_actions_sdk.ports.memory import MemoryStorePort
 from capillary_actions_sdk.ports.platform import (
     RunWorkflowPort,
@@ -23,7 +24,7 @@ from capillary_actions_sdk.schema import (
 )
 
 from primer_core.memory import MemoryCore
-from primer_core.orchestrator import EngagementOrchestrator
+from primer_core.orchestrator import EngagementOrchestrator, write_back_outcome
 from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
 from primer_core.skills import SkillRegistry
 
@@ -88,6 +89,20 @@ class RecordingHookStreamingRunner(RunWorkflowPort):
         )
 
         self.calls.append("runner-finished")
+
+
+class RecordingMemoryCore(MemoryCore):
+    """Record memory ingest calls without using a real store."""
+
+    def __init__(self) -> None:
+        object.__setattr__(self, "ingest_calls", [])
+
+    def ingest(
+        self,
+        subject_id: UUID,
+        signal: PreferenceSignal,
+    ) -> None:
+        self.ingest_calls.append((subject_id, signal))
 
 
 def _schema() -> DomainSchema:
@@ -292,3 +307,40 @@ async def test_run_engagement_streaming_fires_hooks_around_typed_events() -> Non
     assert len(runner.requests) == 1
     assert runner.requests[0].thread_id == "thread-1"
     assert runner.requests[0].input_data == input_data
+
+
+async def test_after_engagement_writeback_persists_outcome() -> None:
+    calls: list[str] = []
+    schema = _schema()
+    memory = RecordingMemoryCore()
+    hooks = HookRegistry()
+
+    hooks.register(
+        HookEvent.AFTER_ENGAGEMENT,
+        write_back_outcome,
+    )
+
+    orchestrator = EngagementOrchestrator(
+        schema=schema,
+        runner=RecordingRunner(calls),
+        memory=memory,
+        skills=_skills(),
+        hooks=hooks,
+    )
+
+    subject_id = uuid4()
+
+    await orchestrator.run_engagement(
+        skill_name="tutor-concept",
+        subject_id=subject_id,
+        thread_id="thread-1",
+    )
+
+    assert len(memory.ingest_calls) == 1
+
+    ingested_subject_id, signal = memory.ingest_calls[0]
+
+    assert ingested_subject_id == subject_id
+    assert signal.user_id == subject_id
+    assert signal.payload["engagement"] == "tutor-concept"
+    assert signal.payload["outcome"] == {"answer": "Recursion calls itself."}
