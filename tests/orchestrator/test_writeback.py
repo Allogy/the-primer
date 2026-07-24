@@ -2,6 +2,7 @@
 
 from uuid import UUID, uuid4
 
+import pytest
 from capillary_actions_sdk.models.student_model import PreferenceSignal
 from capillary_actions_sdk.schema import (
     DimensionSpec,
@@ -19,12 +20,12 @@ from primer_core.orchestrator.writeback import (
 
 
 class RecordingMemoryCore(MemoryCore):
-    """Record ingest calls without using a real memory store."""
+    """Record asynchronous ingest calls without using a store."""
 
     def __init__(self) -> None:
         object.__setattr__(self, "ingest_calls", [])
 
-    def ingest(
+    async def ingest(
         self,
         subject_id: UUID,
         signal: PreferenceSignal,
@@ -52,16 +53,22 @@ def _schema() -> DomainSchema:
 async def test_write_back_outcome_ingests_preference_signal() -> None:
     subject_id = uuid4()
     memory = RecordingMemoryCore()
-    outcome = {
-        "answer": "Recursion calls itself.",
-        "status": "completed",
-    }
 
     context = HookContext(
         subject_id=subject_id,
         schema=_schema(),
         engagement="tutor-concept",
-        payload={"outcome": outcome},
+        payload={
+            "outcome": {
+                "answer": "Recursion calls itself.",
+            },
+            "writeback": {
+                "dimension": "history",
+                "content": {
+                    "courses": ["recursion"],
+                },
+            },
+        },
         memory=memory,
     )
 
@@ -78,13 +85,15 @@ async def test_write_back_outcome_ingests_preference_signal() -> None:
     assert signal.org_id == SENTINEL_ORG_ID
     assert signal.signal_type == "engagement_outcome"
     assert signal.payload == {
-        "engagement": "tutor-concept",
-        "outcome": outcome,
+        "dimension": "history",
+        "content": {
+            "courses": ["recursion"],
+        },
     }
     assert signal.source == "primer_core.orchestrator"
 
 
-async def test_write_back_outcome_uses_payload_org_id() -> None:
+async def test_write_back_outcome_reads_mapping_from_outcome() -> None:
     subject_id = uuid4()
     org_id = uuid4()
     memory = RecordingMemoryCore()
@@ -95,7 +104,15 @@ async def test_write_back_outcome_uses_payload_org_id() -> None:
         engagement="tutor-concept",
         payload={
             "org_id": org_id,
-            "outcome": {"result": "success"},
+            "outcome": {
+                "answer": "Recursion calls itself.",
+                "writeback": {
+                    "dimension": "history",
+                    "content": {
+                        "courses": ["recursion"],
+                    },
+                },
+            },
         },
         memory=memory,
     )
@@ -107,9 +124,34 @@ async def test_write_back_outcome_uses_payload_org_id() -> None:
     ingested_subject_id, signal = memory.ingest_calls[0]
 
     assert ingested_subject_id == subject_id
-    assert signal.org_id == org_id
     assert signal.user_id == subject_id
-    assert signal.payload["outcome"] == {"result": "success"}
+    assert signal.org_id == org_id
+    assert signal.payload == {
+        "dimension": "history",
+        "content": {
+            "courses": ["recursion"],
+        },
+    }
+
+
+async def test_write_back_outcome_requires_mapping() -> None:
+    context = HookContext(
+        subject_id=uuid4(),
+        schema=_schema(),
+        engagement="tutor-concept",
+        payload={
+            "outcome": {
+                "answer": "Recursion calls itself.",
+            },
+        },
+        memory=RecordingMemoryCore(),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Engagement outcome must contain a writeback mapping",
+    ):
+        await write_back_outcome(context)
 
 
 async def test_on_struggle_selects_previous_schema_engagement() -> None:

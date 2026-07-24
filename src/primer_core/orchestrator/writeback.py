@@ -10,10 +10,27 @@ SENTINEL_ORG_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 
 async def write_back_outcome(ctx: HookContext) -> None:
-    """Persist a completed engagement outcome to learner memory."""
-    outcome = ctx.payload["outcome"]
+    """Persist a schema-aligned engagement outcome to memory."""
+    writeback = ctx.payload.get("writeback")
+    outcome = ctx.payload.get("outcome")
 
-    org_id = ctx.payload.get("org_id", SENTINEL_ORG_ID)
+    if writeback is None and isinstance(outcome, dict):
+        writeback = outcome.get("writeback")
+
+    if not isinstance(writeback, dict):
+        raise ValueError("Engagement outcome must contain a writeback mapping")
+
+    dimension = writeback.get("dimension")
+    content = writeback.get("content")
+
+    if not isinstance(dimension, str):
+        raise ValueError("Writeback dimension must be a string")
+
+    if not isinstance(content, dict):
+        raise ValueError("Writeback content must be a dictionary")
+
+    raw_org_id = ctx.payload.get("org_id", SENTINEL_ORG_ID)
+    org_id = raw_org_id if isinstance(raw_org_id, UUID) else UUID(str(raw_org_id))
 
     signal = PreferenceSignal(
         id=uuid4(),
@@ -21,21 +38,18 @@ async def write_back_outcome(ctx: HookContext) -> None:
         org_id=org_id,
         signal_type="engagement_outcome",
         payload={
-            "engagement": ctx.engagement,
-            "outcome": outcome,
+            "dimension": dimension,
+            "content": dict(content),
         },
         source="primer_core.orchestrator",
     )
 
-    ctx.memory.ingest(
-        ctx.subject_id,
-        signal,
-    )
+    await ctx.memory.ingest(ctx.subject_id, signal)
 
 
 async def on_struggle(ctx: HookContext) -> None:
     """Route a struggling subject to a simpler schema-defined engagement."""
-    if not ctx.payload.get("struggling", False):
+    if ctx.payload.get("struggling") is not True:
         return
 
     engagements = ctx.schema.engagements

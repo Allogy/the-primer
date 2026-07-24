@@ -24,8 +24,14 @@ from capillary_actions_sdk.schema import (
 )
 
 from primer_core.memory import MemoryCore
-from primer_core.orchestrator import EngagementOrchestrator, write_back_outcome
-from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
+from primer_core.orchestrator import (
+    EngagementOrchestrator,
+    HookContext,
+    HookEvent,
+    HookRegistry,
+    on_struggle,
+    write_back_outcome,
+)
 from primer_core.skills import SkillRegistry
 
 
@@ -53,6 +59,47 @@ class RecordingRunner(RunWorkflowPort):
     ) -> AsyncIterator[AGUIEvent]:
         raise AssertionError("run_engagement should not call the streaming runner")
         yield  # pragma: no cover
+
+
+class RecordingWritebackRunner(RecordingRunner):
+    async def run_sync(
+        self,
+        request: RunWorkflowRequest,
+    ) -> RunWorkflowResponse:
+        self.calls.append("runner")
+        self.requests.append(request)
+
+        return RunWorkflowResponse(
+            run_id="run-123",
+            output={
+                "answer": "Recursion calls itself.",
+                "writeback": {
+                    "dimension": "history",
+                    "content": {
+                        "courses": ["recursion"],
+                    },
+                },
+            },
+            status="completed",
+        )
+
+
+class RecordingStruggleRunner(RecordingRunner):
+    async def run_sync(
+        self,
+        request: RunWorkflowRequest,
+    ) -> RunWorkflowResponse:
+        self.calls.append("runner")
+        self.requests.append(request)
+
+        return RunWorkflowResponse(
+            run_id="run-123",
+            output={
+                "answer": "The learner needs more support.",
+                "struggling": True,
+            },
+            status="completed",
+        )
 
 
 class RecordingHookStreamingRunner(RunWorkflowPort):
@@ -92,12 +139,10 @@ class RecordingHookStreamingRunner(RunWorkflowPort):
 
 
 class RecordingMemoryCore(MemoryCore):
-    """Record memory ingest calls without using a real store."""
-
     def __init__(self) -> None:
         object.__setattr__(self, "ingest_calls", [])
 
-    def ingest(
+    async def ingest(
         self,
         subject_id: UUID,
         signal: PreferenceSignal,
@@ -309,7 +354,7 @@ async def test_run_engagement_streaming_fires_hooks_around_typed_events() -> Non
     assert runner.requests[0].input_data == input_data
 
 
-async def test_after_engagement_writeback_persists_outcome() -> None:
+async def test_after_engagement_writeback_calls_memory_ingest() -> None:
     calls: list[str] = []
     schema = _schema()
     memory = RecordingMemoryCore()
@@ -322,7 +367,7 @@ async def test_after_engagement_writeback_persists_outcome() -> None:
 
     orchestrator = EngagementOrchestrator(
         schema=schema,
-        runner=RecordingRunner(calls),
+        runner=RecordingWritebackRunner(calls),
         memory=memory,
         skills=_skills(),
         hooks=hooks,
@@ -342,5 +387,65 @@ async def test_after_engagement_writeback_persists_outcome() -> None:
 
     assert ingested_subject_id == subject_id
     assert signal.user_id == subject_id
-    assert signal.payload["engagement"] == "tutor-concept"
-    assert signal.payload["outcome"] == {"answer": "Recursion calls itself."}
+    assert signal.payload == {
+        "dimension": "history",
+        "content": {
+            "courses": ["recursion"],
+        },
+    }
+
+
+async def test_run_engagement_fires_struggle_hook_and_sets_next_skill() -> None:
+    calls: list[str] = []
+    after_payloads: list[dict] = []
+
+    schema = DomainSchema(
+        domain="test-domain",
+        subject="test-subject",
+        dimensions=[],
+        knowledge_base=KnowledgeBaseWiring(kb_names=[]),
+        engagements=[
+            "foundational",
+            "tutor-concept",
+        ],
+    )
+    hooks = HookRegistry()
+
+    async def route_on_struggle(ctx: HookContext) -> None:
+        calls.append("struggle")
+        await on_struggle(ctx)
+
+    async def record_after(ctx: HookContext) -> None:
+        calls.append("after")
+        after_payloads.append(dict(ctx.payload))
+
+    hooks.register(
+        HookEvent.ON_STRUGGLE_DETECTED,
+        route_on_struggle,
+    )
+    hooks.register(
+        HookEvent.AFTER_ENGAGEMENT,
+        record_after,
+    )
+
+    orchestrator = EngagementOrchestrator(
+        schema=schema,
+        runner=RecordingStruggleRunner(calls),
+        memory=_memory(schema),
+        skills=_skills(),
+        hooks=hooks,
+    )
+
+    await orchestrator.run_engagement(
+        skill_name="tutor-concept",
+        subject_id=uuid4(),
+        thread_id="thread-1",
+    )
+
+    assert calls == [
+        "runner",
+        "struggle",
+        "after",
+    ]
+    assert after_payloads[0]["struggling"] is True
+    assert after_payloads[0]["next_skill"] == "foundational"

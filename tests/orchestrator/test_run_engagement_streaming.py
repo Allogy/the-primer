@@ -23,21 +23,33 @@ class RecordingStreamingRunner(RunWorkflowPort):
         self.requests: list[RunWorkflowRequest] = []
         self.run_sync_called = False
 
-    async def run_sync(self, request: RunWorkflowRequest) -> RunWorkflowResponse:
+    async def run_sync(
+        self,
+        request: RunWorkflowRequest,
+    ) -> RunWorkflowResponse:
         self.run_sync_called = True
         raise AssertionError("run_engagement_streaming should not call run_sync")
 
-    async def run(self, request: RunWorkflowRequest) -> AsyncIterator[AGUIEvent]:
+    async def run(
+        self,
+        request: RunWorkflowRequest,
+    ) -> AsyncIterator[AGUIEvent]:
         self.requests.append(request)
 
-        yield RunStartedEvent(thread_id=request.thread_id, run_id="run-123")
+        yield RunStartedEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+        )
         yield TextMessageContentEvent(
             thread_id=request.thread_id,
             run_id="run-123",
             message_id="msg-1",
             content="Hello learner",
         )
-        yield RunFinishedEvent(thread_id=request.thread_id, run_id="run-123")
+        yield RunFinishedEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+        )
 
 
 class RecordingEventStream:
@@ -68,13 +80,17 @@ class RecordingEventStream:
 
 def _skills() -> SkillRegistry:
     skills = SkillRegistry()
-    skills.register("tutor-concept", "src/primer_core/wdfs/tutor-concept.yaml")
+    skills.register(
+        "tutor-concept",
+        "src/primer_core/wdfs/tutor-concept.yaml",
+    )
     return skills
 
 
 async def test_run_engagement_streaming_yields_runner_events_without_event_stream() -> None:
     runner = RecordingStreamingRunner()
     skills = _skills()
+
     orchestrator = EngagementOrchestrator(
         schema=object(),
         runner=runner,
@@ -116,6 +132,7 @@ async def test_run_engagement_streaming_yields_runner_events_without_event_strea
 async def test_run_engagement_streaming_routes_events_through_event_stream() -> None:
     runner = RecordingStreamingRunner()
     event_stream = RecordingEventStream()
+
     orchestrator = EngagementOrchestrator(
         schema=object(),
         runner=runner,
@@ -124,8 +141,8 @@ async def test_run_engagement_streaming_routes_events_through_event_stream() -> 
     )
 
     events = [
-        encoded
-        async for encoded in orchestrator.run_engagement_streaming(
+        event
+        async for event in orchestrator.run_engagement_streaming(
             "tutor-concept",
             uuid4(),
             thread_id="thread-1",

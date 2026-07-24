@@ -14,7 +14,11 @@ from capillary_actions_sdk.ports.platform import (
     RunWorkflowResponse,
 )
 
-from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
+from primer_core.orchestrator.hooks import (
+    HookContext,
+    HookEvent,
+    HookRegistry,
+)
 from primer_core.skills import SkillRegistry
 
 if TYPE_CHECKING:
@@ -57,7 +61,8 @@ class EngagementOrchestrator:
             org_id=None,
         )
 
-        context = None
+        context: HookContext | None = None
+
         if self.hooks is not None:
             context = HookContext(
                 subject_id=subject_id,
@@ -79,6 +84,14 @@ class EngagementOrchestrator:
             context.payload["status"] = response.status
             context.payload["run_id"] = response.run_id
 
+            if isinstance(response.output, dict) and response.output.get("struggling") is True:
+                context.payload["struggling"] = True
+
+                await self.hooks.fire(
+                    HookEvent.ON_STRUGGLE_DETECTED,
+                    context,
+                )
+
             await self.hooks.fire(
                 HookEvent.AFTER_ENGAGEMENT,
                 context,
@@ -91,7 +104,7 @@ class EngagementOrchestrator:
         skill_name: str,
         subject_id: UUID,
         thread_id: str,
-        input_data: dict | None = None,
+        input_data: dict[str, Any] | None = None,
         event_stream: EventStreamPort | None = None,
     ) -> AsyncIterator[AGUIEvent]:
         """Run an engagement while yielding typed workflow events."""
@@ -100,11 +113,11 @@ class EngagementOrchestrator:
         request = RunWorkflowRequest(
             workflow_id=workflow_id,
             thread_id=thread_id,
-            input_data=input_data or {},
+            input_data={} if input_data is None else input_data,
             org_id=None,
         )
 
-        context = None
+        context: HookContext | None = None
 
         if self.hooks is not None:
             context = HookContext(
