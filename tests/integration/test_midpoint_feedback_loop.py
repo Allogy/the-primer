@@ -101,7 +101,7 @@ async def test_session_2_reads_memory_written_in_session_1(tmp_path: str | Path)
     await write_back_outcome(ctx=test_context)
 
     # When I run an engagement in session 1 (fresh orchestrator + store instance)
-    first_orchestrator.run_engagement(
+    await first_orchestrator.run_engagement(
         skill_name="tutor-concept",
         subject_id=test_subject_id,
         thread_id="thread-1",
@@ -123,7 +123,7 @@ async def test_session_2_reads_memory_written_in_session_1(tmp_path: str | Path)
         skills=test_skill_registry_2,
     )
     # ...and run session 2
-    second_orchestrator.run_engagement(
+    await second_orchestrator.run_engagement(
         skill_name="tutor-concept",
         subject_id=test_subject_id,
         thread_id="thread-2",
@@ -131,10 +131,10 @@ async def test_session_2_reads_memory_written_in_session_1(tmp_path: str | Path)
 
     # Then session 2's assemble_working_memory (or store.get)
     #   surfaces the outcome written in session 1
-    second_working_memory_entries = second_orchestrator.memory.assemble_working_memory(
+    second_working_memory_entries = await second_orchestrator.memory.assemble_working_memory(
         subject_id=test_subject_id
     ).entries
-    first_memory_entries = first_memory.store.get(subject_id=test_subject_id)
+    first_memory_entries = await first_memory.store.get(subject_id=test_subject_id)
     assert all(entry in first_memory_entries for entry in second_working_memory_entries)
 
     # And the outcome reached the store via MemoryCore.ingest (a PreferenceSignal-shaped entry)
@@ -142,7 +142,7 @@ async def test_session_2_reads_memory_written_in_session_1(tmp_path: str | Path)
     assert isinstance(first_memory.ingest_calls[1], PreferenceSignal)
 
 
-def test_struggling_subject_adapted_to_easier_skill(tmp_path: str | Path):
+async def test_struggling_subject_adapted_to_easier_skill(tmp_path: str | Path):
     """
     BDD Scenario #2
     ---------------
@@ -175,13 +175,13 @@ def test_struggling_subject_adapted_to_easier_skill(tmp_path: str | Path):
     )
 
     # When the loop runs
-    hooks.fire(event=HookEvent.ON_STRUGGLE_DETECTED, ctx=test_context)
+    await hooks.fire(event=HookEvent.ON_STRUGGLE_DETECTED, ctx=test_context)
 
     # Then the next engagement selected comes from payload['next_skill']
     assert test_context.payload["next_skill"] == "guided"
 
 
-def test_persistence_survives_with_entries_from_both_write_paths(tmp_path: str | Path):
+async def test_persistence_survives_with_entries_from_both_write_paths(tmp_path: str | Path):
     """
     BDD Scenario #3
     ---------------
@@ -215,9 +215,9 @@ def test_persistence_survives_with_entries_from_both_write_paths(tmp_path: str |
     hooks = HookReigstry()
     hooks.register(event=HookEvent.AFTER_ENGAGEMENT, fn=write_back_outcome)
 
-    write_back_outcome(ctx=test_context)
+    await write_back_outcome(ctx=test_context)
 
-    write_back_signal_id = first_memory.store.get(subject_id=test_subject_id)[0].metadata[
+    write_back_signal_id = await first_memory.store.get(subject_id=test_subject_id)[0].metadata[
         "signal_id"
     ]
 
@@ -234,7 +234,7 @@ def test_persistence_survives_with_entries_from_both_write_paths(tmp_path: str |
             "source": "primer_core.tests.integration.test_midpoint_feedback_loop",
         },
     )
-    first_memory.write(subject_id=test_subject_id, entry=test_entry)
+    await first_memory.write(subject_id=test_subject_id, entry=test_entry)
 
     # When session 2 assembles working memory over the same file
     second_memory = MemoryCore(
@@ -244,17 +244,17 @@ def test_persistence_survives_with_entries_from_both_write_paths(tmp_path: str |
     second_orchestrator = EngagementOrchestrator(
         schema=test_schema, runner=RunWorkflowPort(), memory=second_memory, skills=_skills()
     )
-    second_orchestrator.run_engagement(
+    await second_orchestrator.run_engagement(
         skill_name="tutor-concept",
         subject_id=test_subject_id,
         thread_id="thread-2",
     )
-    session_2_working_memory_entries = second_orchestrator.memory.assemble_working_memory(
+    session_2_working_memory_entries = await second_orchestrator.memory.assemble_working_memory(
         subject_id=test_subject_id
     ).entries
 
     # Then both entries are present with content, relevance_score, and metadata intact
-    session_1_memory_entries = first_memory.store.get(subject_id=test_subject_id)
+    session_1_memory_entries = await first_memory.store.get(subject_id=test_subject_id)
 
     assert len(session_2_working_memory_entries) == len(session_1_memory_entries) == 2
     assert all(
