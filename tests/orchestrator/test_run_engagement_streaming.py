@@ -23,21 +23,33 @@ class RecordingStreamingRunner(RunWorkflowPort):
         self.requests: list[RunWorkflowRequest] = []
         self.run_sync_called = False
 
-    async def run_sync(self, request: RunWorkflowRequest) -> RunWorkflowResponse:
+    async def run_sync(
+        self,
+        request: RunWorkflowRequest,
+    ) -> RunWorkflowResponse:
         self.run_sync_called = True
         raise AssertionError("run_engagement_streaming should not call run_sync")
 
-    async def run(self, request: RunWorkflowRequest) -> AsyncIterator[AGUIEvent]:
+    async def run(
+        self,
+        request: RunWorkflowRequest,
+    ) -> AsyncIterator[AGUIEvent]:
         self.requests.append(request)
 
-        yield RunStartedEvent(thread_id=request.thread_id, run_id="run-123")
+        yield RunStartedEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+        )
         yield TextMessageContentEvent(
             thread_id=request.thread_id,
             run_id="run-123",
             message_id="msg-1",
             content="Hello learner",
         )
-        yield RunFinishedEvent(thread_id=request.thread_id, run_id="run-123")
+        yield RunFinishedEvent(
+            thread_id=request.thread_id,
+            run_id="run-123",
+        )
 
 
 class RecordingEventStream:
@@ -58,18 +70,27 @@ class RecordingEventStream:
 
     async def send_event(self, event: AGUIEvent) -> str:
         self.send_event_called = True
-        return f"event: {event.event_type.value}\n\n"
+        self.events.append(event)
+
+        encoded = f"event: {event.event_type.value}\n\n"
+        self.encoded_events.append(encoded)
+
+        return encoded
 
 
 def _skills() -> SkillRegistry:
     skills = SkillRegistry()
-    skills.register("tutor-concept", "src/primer_core/wdfs/tutor-concept.yaml")
+    skills.register(
+        "tutor-concept",
+        "src/primer_core/wdfs/tutor-concept.yaml",
+    )
     return skills
 
 
 async def test_run_engagement_streaming_yields_runner_events_without_event_stream() -> None:
     runner = RecordingStreamingRunner()
     skills = _skills()
+
     orchestrator = EngagementOrchestrator(
         schema=object(),
         runner=runner,
@@ -111,6 +132,7 @@ async def test_run_engagement_streaming_yields_runner_events_without_event_strea
 async def test_run_engagement_streaming_routes_events_through_event_stream() -> None:
     runner = RecordingStreamingRunner()
     event_stream = RecordingEventStream()
+
     orchestrator = EngagementOrchestrator(
         schema=object(),
         runner=runner,
@@ -118,9 +140,9 @@ async def test_run_engagement_streaming_routes_events_through_event_stream() -> 
         skills=_skills(),
     )
 
-    encoded_events = [
-        encoded
-        async for encoded in orchestrator.run_engagement_streaming(
+    events = [
+        event
+        async for event in orchestrator.run_engagement_streaming(
             "tutor-concept",
             uuid4(),
             thread_id="thread-1",
@@ -129,15 +151,18 @@ async def test_run_engagement_streaming_routes_events_through_event_stream() -> 
         )
     ]
 
-    assert encoded_events == [
-        "event: RUN_STARTED\n\n",
-        "event: TEXT_MESSAGE_CONTENT\n\n",
-        "event: RUN_FINISHED\n\n",
-    ]
-    assert event_stream.encoded_events == encoded_events
-    assert [event.event_type for event in event_stream.events] == [
+    assert all(isinstance(event, AGUIEvent) for event in events)
+
+    assert [event.event_type for event in events] == [
         AGUIEventType.RUN_STARTED,
         AGUIEventType.TEXT_MESSAGE_CONTENT,
         AGUIEventType.RUN_FINISHED,
     ]
-    assert event_stream.send_event_called is False
+
+    assert event_stream.encoded_events == [
+        "event: RUN_STARTED\n\n",
+        "event: TEXT_MESSAGE_CONTENT\n\n",
+        "event: RUN_FINISHED\n\n",
+    ]
+
+    assert event_stream.send_event_called is True
