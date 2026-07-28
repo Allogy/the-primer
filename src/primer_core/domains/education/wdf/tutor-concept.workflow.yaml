@@ -1,0 +1,16 @@
+# Tutor Concept Workflow Definition
+#
+# Defines the Week-2 `tutor-concept` skill used by SkillRegistry and
+# EngagementOrchestrator. This file intentionally contains only the minimal
+# WDF structure required by the frozen contract: name, entry, exit, and nodes.
+#
+# The in-memory FakeRunWorkflowPort does not execute these nodes during Week 2.
+# Node behavior can be expanded once the production WDF execution schema is introduced.
+
+name: tutor-concept
+entry: explain
+exit: complete
+
+nodes:
+  explain: {}
+  complete: {}
