@@ -20,6 +20,7 @@ primer_core.domains and one line in the builder table below.
 from __future__ import annotations
 
 from collections.abc import Callable
+from importlib import import_module
 from pathlib import Path
 
 from capillary_actions_sdk.schema.domain_schema import DomainSchema, load
@@ -37,7 +38,16 @@ COOP_FINANCE = "coop-finance"
 
 
 class DomainPack(BaseModel):
-    """A domain's schema, skills, and knowledge base wiring, bundled together."""
+    """A domain's schema, skills, and knowledge base wiring, bundled together.
+
+    Immutability is shallow. `frozen=True` blocks *field reassignment*
+    (`pack.kb_names = [...]` raises) but it cannot freeze the objects the
+    fields point at: `pack.kb_names.append(...)` and `pack.skills.register(...)`
+    would still mutate in place. A pack is shared across every engine
+    construction for its domain, so consumers must treat `kb_names` and
+    `skills` as read-only — copy before modifying (`list(pack.kb_names)`) rather
+    than mutating the pack's own state.
+    """
 
     # `schema` shadows the deprecated BaseModel.schema classmethod on purpose:
     # it is the frozen contract name, matching HookContext.schema.
@@ -75,19 +85,31 @@ def build_pack(manifest_path: Path, wdf_dir: Path) -> DomainPack:
     )
 
 
-def _builders() -> dict[str, Callable[[], DomainPack]]:
-    """Resolve the builder table lazily so domain subpackages stay unimported."""
-    from primer_core.domains.coop_finance import build_coop_finance_pack
-    from primer_core.domains.education import build_education_pack
+# Domain key -> (module path, builder attribute). The values are *strings* so
+# that resolving one domain never imports another: a broken dependency inside
+# one pack must not stop every other domain from loading. Registering a new
+# domain is one line here plus its subpackage — still no engine edit.
+_BUILDERS: dict[str, tuple[str, str]] = {
+    EDUCATION: ("primer_core.domains.education", "build_education_pack"),
+    COOP_FINANCE: ("primer_core.domains.coop_finance", "build_coop_finance_pack"),
+}
 
-    return {
-        EDUCATION: build_education_pack,
-        COOP_FINANCE: build_coop_finance_pack,
-    }
+
+def _builder(name: str) -> Callable[[], DomainPack]:
+    """Import just the requested domain's subpackage and return its builder."""
+    try:
+        module_path, attribute = _BUILDERS[name]
+    except KeyError:
+        known = sorted(_BUILDERS)
+        raise ValueError(f"unknown domain {name!r} (known: {known})") from None
+
+    return getattr(import_module(module_path), attribute)
 
 
 def load_domain_pack(name: str) -> DomainPack:
     """Load the DomainPack registered under `name`.
+
+    Only the requested domain's subpackage is imported.
 
     Args:
         name: A domain key — 'education' or 'coop-finance'.
@@ -95,12 +117,4 @@ def load_domain_pack(name: str) -> DomainPack:
     Raises:
         ValueError: if `name` is not a known domain.
     """
-    builders = _builders()
-
-    try:
-        build = builders[name]
-    except KeyError:
-        known = sorted(builders)
-        raise ValueError(f"unknown domain {name!r} (known: {known})") from None
-
-    return build()
+    return _builder(name)()
