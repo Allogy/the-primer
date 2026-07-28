@@ -1,14 +1,13 @@
-import importlib
 import json
 from pathlib import Path
 from uuid import uuid4
 
 import capillary_actions_sdk
-import pytest
 from capillary_actions_sdk.events import AGUIEventType
 from capillary_actions_sdk.models.student_model import PreferenceSignal
 from capillary_actions_sdk.schema.domain_schema import load
 
+from primer_core.adapters.capillary.file_memory_store import FileMemoryStore
 from primer_core.adapters.capillary.kb_pgvector import PgVectorKnowledgeBase
 from primer_core.adapters.capillary.workflow_cli_runner import WorkflowCliRunner
 from primer_core.memory.core import MemoryCore
@@ -66,19 +65,9 @@ def _skills() -> SkillRegistry:
     return skills
 
 
-def _optional_class(module_name: str, class_name: str):
-    try:
-        module = importlib.import_module(module_name)
-    except ModuleNotFoundError:
-        pytest.skip(f"{module_name}.{class_name} has not landed in this branch yet")
-
-    try:
-        return getattr(module, class_name)
-    except AttributeError:
-        pytest.skip(f"{module_name}.{class_name} has not landed in this branch yet")
-
-
-async def test_week_3_gate_streams_education_engagement_through_workflow_runner_port() -> None:
+async def test_week_3_gate_streams_education_engagement_through_workflow_runner_port(
+    tmp_path: Path,
+) -> None:
     schema = load(str(_education_manifest_path()))
     subject_id = uuid4()
     fake_exec = FakeExec(
@@ -98,7 +87,7 @@ async def test_week_3_gate_streams_education_engagement_through_workflow_runner_
     orchestrator = EngagementOrchestrator(
         schema=schema,
         runner=runner,
-        memory=object(),
+        memory=MemoryCore(schema, FileMemoryStore(path=tmp_path / "mem.json")),
         skills=skills,
     )
 
@@ -135,18 +124,13 @@ async def test_week_3_gate_streams_education_engagement_through_workflow_runner_
 async def test_week_3_gate_file_memory_store_persists_entries_across_instances(
     tmp_path,
 ) -> None:
-    FileMemoryStore = _optional_class(
-        "primer_core.adapters.capillary.file_memory_store",
-        "FileMemoryStore",
-    )
-
     schema = load(str(_education_manifest_path()))
     subject_id = uuid4()
     memory_path = tmp_path / "memory.json"
 
     first_memory = MemoryCore(
         schema=schema,
-        store=FileMemoryStore(memory_path),
+        store=FileMemoryStore(path=memory_path),
     )
 
     signal = PreferenceSignal(
