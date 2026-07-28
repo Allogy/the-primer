@@ -27,7 +27,6 @@ class MemoryCore:
         """
         self.schema = schema
         self.store = store
-        self.ingest_calls = []
 
     async def write(self, subject_id: UUID, entry: MemoryEntry) -> MemoryEntry:
         """Validate and store an entry into the MemoryCore object's MemoryStorePort object.
@@ -65,8 +64,6 @@ class MemoryCore:
             ValueError: if the entry's content is not listed in the fields
                 of that entry's dimension.
         """
-        self.ingest_calls.append((subject_id, signal))
-
         entry = MemoryEntry(
             id=uuid4(),
             tier="long_term",

@@ -124,7 +124,6 @@ async def test_week_3_gate_streams_education_engagement_through_workflow_runner_
 async def test_week_3_gate_file_memory_store_persists_entries_across_instances(
     tmp_path,
 ) -> None:
-
     schema = load(str(_education_manifest_path()))
     subject_id = uuid4()
     memory_path = tmp_path / "memory.json"
