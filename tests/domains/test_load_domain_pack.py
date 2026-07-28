@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 from uuid import uuid4
 
@@ -106,6 +109,49 @@ class TestCoopFinancePack:
         )
         with pytest.raises(ValueError):
             validate_memory_entry(rejected, pack.schema)
+
+
+class TestLazyDomainImports:
+    """Loading one domain must not import any other domain's subpackage."""
+
+    @staticmethod
+    def _imported_domains(requested: str) -> list[str]:
+        """Load `requested` in a clean interpreter and report the domain modules imported."""
+        script = textwrap.dedent(
+            f"""
+            import sys
+
+            from primer_core.domains import load_domain_pack
+
+            load_domain_pack({requested!r})
+
+            prefix = "primer_core.domains."
+            print(
+                "\\n".join(
+                    sorted(name for name in sys.modules if name.startswith(prefix))
+                )
+            )
+            """
+        )
+        completed = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return completed.stdout.split()
+
+    def test_loading_education_does_not_import_coop_finance(self) -> None:
+        imported = self._imported_domains("education")
+
+        assert "primer_core.domains.education" in imported
+        assert "primer_core.domains.coop_finance" not in imported
+
+    def test_loading_coop_finance_does_not_import_education(self) -> None:
+        imported = self._imported_domains("coop-finance")
+
+        assert "primer_core.domains.coop_finance" in imported
+        assert "primer_core.domains.education" not in imported
 
 
 class TestUnknownDomain:

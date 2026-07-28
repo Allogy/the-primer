@@ -35,9 +35,28 @@ class TestDomainPackShape:
         assert isinstance(education_pack.kb_names, list)
         assert all(isinstance(name, str) for name in education_pack.kb_names)
 
-    def test_pack_is_frozen(self, education_pack: DomainPack) -> None:
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("kb_names", ["other-kb"]),
+            ("skills", SkillRegistry()),
+        ],
+    )
+    def test_pack_fields_cannot_be_reassigned(
+        self,
+        education_pack: DomainPack,
+        field: str,
+        value: object,
+    ) -> None:
+        """frozen=True blocks reassignment. It does NOT deep-freeze the field values.
+
+        `kb_names.append(...)` and `skills.register(...)` still mutate in place —
+        see the DomainPack docstring; consumers must treat them as read-only.
+        """
         with pytest.raises(ValidationError):
-            education_pack.kb_names = ["other-kb"]
+            setattr(education_pack, field, value)
+
+        assert education_pack.kb_names == ["primer-education-kb"]
 
     def test_workflow_definition_returns_a_path_string_for_a_known_engagement(
         self,
