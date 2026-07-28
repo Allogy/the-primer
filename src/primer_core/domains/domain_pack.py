@@ -30,6 +30,11 @@ from primer_core.skills import SkillRegistry
 
 WDF_SUFFIX = ".workflow.yaml"
 
+# Example manifests (the SDK's education one included) list a literal '...' as a
+# stand-in for "more engagements to come". It is not a real engagement and has
+# no workflow definition, so it is skipped when checking pack completeness.
+PLACEHOLDER_ENGAGEMENT = "..."
+
 # Public domain keys. These are the frozen contract for load_domain_pack();
 # note the hyphen in 'coop-finance' (it mirrors the manifest's `domain:` value,
 # not the Python package name `coop_finance`).
@@ -71,12 +76,43 @@ def build_pack(manifest_path: Path, wdf_dir: Path) -> DomainPack:
     Skills are discovered by globbing `wdf_dir` rather than by iterating
     `schema.engagements`, because example manifests may carry a '...'
     placeholder engagement that has no workflow definition.
+
+    A pack that is missing its workflow definitions is a packaging bug, and it
+    must not be papered over: `Path.glob` on a nonexistent directory returns
+    empty, which would otherwise yield a valid-looking pack with zero skills
+    that dies much later as a bare KeyError inside run_engagement.
+
+    Raises:
+        FileNotFoundError: if `wdf_dir` is not a directory.
+        ValueError: if a declared engagement has no workflow definition.
     """
     schema = load(str(manifest_path))
 
+    if not wdf_dir.is_dir():
+        raise FileNotFoundError(
+            f"no workflow definition directory for domain {schema.domain!r}: "
+            f"{wdf_dir} is missing or is not a directory "
+            f"(expected *{WDF_SUFFIX} documents there)"
+        )
+
     skills = SkillRegistry()
+    registered: set[str] = set()
     for wdf_path in sorted(wdf_dir.glob(f"*{WDF_SUFFIX}")):
-        skills.register(wdf_path.name.removesuffix(WDF_SUFFIX), str(wdf_path))
+        engagement = wdf_path.name.removesuffix(WDF_SUFFIX)
+        skills.register(engagement, str(wdf_path))
+        registered.add(engagement)
+
+    missing = [
+        engagement
+        for engagement in schema.engagements
+        if engagement != PLACEHOLDER_ENGAGEMENT and engagement not in registered
+    ]
+    if missing:
+        raise ValueError(
+            f"domain {schema.domain!r} declares engagements with no workflow "
+            f"definition in {wdf_dir}: {missing} "
+            f"(expected files: {[f'{name}{WDF_SUFFIX}' for name in missing]})"
+        )
 
     return DomainPack(
         schema=schema,
