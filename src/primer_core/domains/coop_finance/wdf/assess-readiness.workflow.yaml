@@ -1,0 +1,15 @@
+# Assess Readiness Workflow Definition — STUB (KG-W5 / RAG-1847)
+#
+# Minimal WDF structure only: name, entry, exit, nodes. It exists so the
+# coop-finance pack registers a real, loadable skill and the orchestrator can
+# resolve a workflow id for it.
+#
+# Real skill content (readiness rubric, evidence gathering) is DS-W5 scope.
+
+name: assess-readiness
+entry: review
+exit: complete
+
+nodes:
+  review: {}
+  complete: {}

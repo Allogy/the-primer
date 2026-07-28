@@ -53,6 +53,11 @@ capillary-actions-sdk = { git = "https://github.com/Allogy/capillary-actions-sdk
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/the_primer", "src/primer_core"]
+# Domain packs are data-driven: manifests and Workflow Definition Format
+# documents are loaded at runtime relative to their package directory, so they
+# must ship in the wheel. Stated explicitly rather than relying on hatchling's
+# default file sweep.
+artifacts = ["*.yaml"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/the_primer", "src/primer_core"]
