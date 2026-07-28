@@ -1,0 +1,16 @@
+# Suggest Allocation Workflow Definition — STUB (KG-W5 / RAG-1847)
+#
+# Minimal WDF structure only: name, entry, exit, nodes. It exists so the
+# coop-finance pack registers a real, loadable skill and the orchestrator can
+# resolve a workflow id for it.
+#
+# Real skill content — including the AllocationSuggestion output contract
+# reserved in primer_core.domains.coop_finance.models — is DS-W5 scope.
+
+name: suggest-allocation
+entry: assess
+exit: complete
+
+nodes:
+  assess: {}
+  complete: {}
