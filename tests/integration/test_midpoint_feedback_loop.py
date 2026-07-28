@@ -16,12 +16,12 @@ from capillary_actions_sdk.schema.domain_schema import (
     DomainSchema,
     KnowledgeBaseWiring,
 )
-from primer_core.orchestrator.engagement import EngagementOrchestrator
-from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
-from primer_core.orchestrator.writeback import on_struggle, write_back_outcome
 
 from primer_core.adapters.capillary.file_memory_store import FileMemoryStore
 from primer_core.memory.core import MemoryCore
+from primer_core.orchestrator.engagement import EngagementOrchestrator
+from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
+from primer_core.orchestrator.writeback import on_struggle, write_back_outcome
 from primer_core.skills import SkillRegistry
 
 
@@ -65,6 +65,13 @@ class OnStruggleRunner(RunWorkflowPort):
     def __init__(self) -> None:
         self.requests: list[RunWorkflowRequest] = []
 
+    async def run(
+        self,
+        request: RunWorkflowRequest,
+    ) -> AsyncIterator[AGUIEvent]:
+        raise AssertionError("This integration test should use run_engagement, not streaming")
+        yield  # pragma: no cover
+
     async def run_sync(
         self,
         request: RunWorkflowRequest,
@@ -81,7 +88,8 @@ class OnStruggleRunner(RunWorkflowPort):
 class RecordingMemoryCore(MemoryCore):
     """Record asynchronous ingest calls without using a store."""
 
-    def __init__(self) -> None:
+    def __init__(self, schema, store) -> None:
+        super().__init__(schema=schema, store=store)
         object.__setattr__(self, "ingest_calls", [])
 
     async def ingest(
@@ -90,11 +98,12 @@ class RecordingMemoryCore(MemoryCore):
         signal: PreferenceSignal,
     ) -> None:
         self.ingest_calls.append((subject_id, signal))
+        await super().ingest(subject_id=subject_id, signal=signal)
 
 
 # Helper functions
 def _schema(
-    test_domain: str = "education", test_engagements: list[str] = ["tutor-concept"]
+    test_domain: str = "education", test_engagements: list[str] | None = None
 ) -> DomainSchema:
     return DomainSchema(
         domain=test_domain,
@@ -108,7 +117,7 @@ def _schema(
         knowledge_base=KnowledgeBaseWiring(
             kb_names=["primer-education-kb"],
         ),
-        engagements=test_engagements,
+        engagements=test_engagements if test_engagements is not None else ["tutor-concept"],
     )
 
 
@@ -117,6 +126,10 @@ def _skills() -> SkillRegistry:
     skills.register(
         "tutor-concept",
         "src/primer_core/wdfs/tutor-concept.yaml",
+    )
+    skills.register(
+        "foundational",
+        "src/primer_core/wdfs/foundational.yaml",
     )
     return skills
 
@@ -279,9 +292,6 @@ async def test_persistence_survives_with_entries_from_both_write_paths(tmp_path:
     test_hooks = HookRegistry()
     test_hooks.register(event=HookEvent.AFTER_ENGAGEMENT, fn=write_back_outcome)
 
-    test_hooks = HookRegistry()
-    test_hooks.register(event=HookEvent.AFTER_ENGAGEMENT, fn=write_back_outcome)
-
     first_orchestrator = EngagementOrchestrator(
         schema=test_schema,
         runner=WritebackRunner(),
@@ -290,7 +300,7 @@ async def test_persistence_survives_with_entries_from_both_write_paths(tmp_path:
         hooks=test_hooks,
     )
 
-    first_orchestrator.run_engagement(
+    await first_orchestrator.run_engagement(
         skill_name="tutor-concept",
         subject_id=test_subject_id,
         thread_id="thread-1",
@@ -321,7 +331,7 @@ async def test_persistence_survives_with_entries_from_both_write_paths(tmp_path:
     )
 
     second_orchestrator = EngagementOrchestrator(
-        schema=test_schema, runner=RunWorkflowPort(), memory=second_memory, skills=_skills()
+        schema=test_schema, runner=WritebackRunner(), memory=second_memory, skills=_skills()
     )
     await second_orchestrator.run_engagement(
         skill_name="tutor-concept",
