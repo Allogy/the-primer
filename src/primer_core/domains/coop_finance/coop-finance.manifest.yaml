@@ -1,0 +1,55 @@
+# Co-operative Finance Domain Manifest (KG-W5 / RAG-1847)
+#
+# Second domain proving the engine is domain-agnostic: the same MemoryCore,
+# EngagementOrchestrator, and InteractionAgent are constructed from this
+# manifest with zero engine edits.
+#
+# Subject is the credit-union `member`. Dimension names are the frozen
+# contract for this story; the memory tier/decay policies mirror the SDK's
+# education reference until DS-W5 tunes them against real member data.
+
+domain: coop-finance
+subject: member
+
+dimensions:
+  - name: financial_history
+    fields:
+      - accounts
+      - transactions
+      - loan_history
+    write: event-driven
+    decay: none
+
+  - name: risk_appetite
+    fields:
+      - tolerance
+      - horizon
+      - volatility_comfort
+    write: event-driven
+    decay: none
+
+  - name: goals
+    fields:
+      - targets
+      - timelines
+      - priorities
+    write: event-driven
+    decay: none
+
+  - name: habits
+    fields:
+      - saving_cadence
+      - spending_patterns
+      - channel_preference
+    write: event-driven
+    decay: none
+
+knowledge_base:
+  kb_names:
+    - primer-coop-finance-kb
+  retrieval: corrective_rag
+
+engagements:
+  - explain-product
+  - suggest-allocation
+  - assess-readiness
