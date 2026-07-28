@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import pytest
 from capillary_actions_sdk.schema.domain_schema import DomainSchema
 from pydantic import ValidationError
 
 from primer_core.domains import DomainPack, load_domain_pack
 from primer_core.skills import SkillRegistry
+
+# A same-typed replacement value per field, so reassignment is rejected because
+# the model is frozen and not merely because the value failed validation.
+REPLACEMENTS: dict[str, Callable[[], object]] = {
+    "schema": lambda: load_domain_pack("coop-finance").schema,
+    "skills": SkillRegistry,
+    "kb_names": lambda: ["other-kb"],
+}
 
 
 @pytest.fixture
@@ -35,18 +45,11 @@ class TestDomainPackShape:
         assert isinstance(education_pack.kb_names, list)
         assert all(isinstance(name, str) for name in education_pack.kb_names)
 
-    @pytest.mark.parametrize(
-        ("field", "value"),
-        [
-            ("kb_names", ["other-kb"]),
-            ("skills", SkillRegistry()),
-        ],
-    )
+    @pytest.mark.parametrize("field", sorted(REPLACEMENTS))
     def test_pack_fields_cannot_be_reassigned(
         self,
         education_pack: DomainPack,
         field: str,
-        value: object,
     ) -> None:
         """frozen=True blocks reassignment. It does NOT deep-freeze the field values.
 
@@ -54,8 +57,9 @@ class TestDomainPackShape:
         see the DomainPack docstring; consumers must treat them as read-only.
         """
         with pytest.raises(ValidationError):
-            setattr(education_pack, field, value)
+            setattr(education_pack, field, REPLACEMENTS[field]())
 
+        assert education_pack.schema.domain == "education"
         assert education_pack.kb_names == ["primer-education-kb"]
 
     def test_workflow_definition_returns_a_path_string_for_a_known_engagement(

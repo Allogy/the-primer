@@ -162,8 +162,9 @@ class TestUnknownDomain:
         message = str(excinfo.value)
 
         assert "astrology" in message
-        assert "education" in message
-        assert "coop-finance" in message
+        # Pin the exact public key set via the error message — the only public
+        # path to it. Adding a domain must update this deliberately.
+        assert message == "unknown domain 'astrology' (known: ['coop-finance', 'education'])"
 
     def test_underscore_spelling_is_not_a_valid_key(self) -> None:
         with pytest.raises(ValueError):

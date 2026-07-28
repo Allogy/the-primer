@@ -11,6 +11,7 @@ from capillary_actions_sdk.models.knowledge import RetrievedChunk
 
 from primer_core.adapters.capillary import PgVectorKnowledgeBase
 from primer_core.domains import load_domain_pack
+from tests.domains.fakes import FakeSearchClient
 
 FINANCE_ROWS = [
     {
@@ -30,19 +31,16 @@ FINANCE_ROWS = [
 ]
 
 
-class FakeSearchClient:
-    """Records calls and returns canned finance rows, standing in for the pgvector client."""
+def test_retrieved_chunks_carry_text_and_score_only() -> None:
+    """Freezes the contract point: chunks have no provenance field yet.
 
-    def __init__(self, rows: list[dict]) -> None:
-        self._rows = rows
-        self.calls: list[tuple[str, list[str], int]] = []
-
-    async def search(self, query: str, kb_names: list[str], top_k: int) -> list[dict]:
-        self.calls.append((query, list(kb_names), top_k))
-        return self._rows
+    If the SDK ever adds one (source doc, kb name, offsets), this test fails and
+    the finance packs get to decide what to surface rather than inheriting it.
+    """
+    assert set(RetrievedChunk.model_fields) == {"text", "score"}
 
 
-async def test_retrieves_on_topic_finance_chunks_for_the_pack_kb() -> None:
+async def test_retrieves_finance_chunks_for_the_pack_kb() -> None:
     pack = load_domain_pack("coop-finance")
     client = FakeSearchClient(FINANCE_ROWS)
     kb = PgVectorKnowledgeBase(client)
@@ -51,9 +49,11 @@ async def test_retrieves_on_topic_finance_chunks_for_the_pack_kb() -> None:
 
     assert len(chunks) == 2
     assert all(isinstance(chunk, RetrievedChunk) for chunk in chunks)
-    assert "share account" in chunks[0].text
-    assert all(0.0 <= chunk.score <= 1.0 for chunk in chunks)
+
+    # Rows map to chunks positionally, so ranking survives the adapter.
+    assert [chunk.text for chunk in chunks] == [row["chunk"] for row in FINANCE_ROWS]
     assert chunks[0].score == pytest.approx(0.92)
+    assert chunks[1].score == pytest.approx(0.69)
 
 
 async def test_retrieval_is_wired_to_the_finance_knowledge_base() -> None:
