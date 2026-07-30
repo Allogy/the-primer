@@ -1,15 +1,65 @@
-# Explain Product Workflow Definition — STUB (KG-W5 / RAG-1847)
+# Explain Product Workflow Definition
 #
-# Minimal WDF structure only: name, entry, exit, nodes. It exists so the
-# coop-finance pack registers a real, loadable skill and the orchestrator can
-# resolve a workflow id for it.
-#
-# Real skill content (node prompts, retrieval steps, guardrails) is DS-W5 scope.
+# Explains a cooperative-finance product using retrieved finance-KB evidence.
+# Product claims must be grounded and limitations must be stated explicitly.
 
 name: explain-product
-entry: explain
+entry: retrieve-product-context
 exit: complete
 
 nodes:
-  explain: {}
-  complete: {}
+  retrieve-product-context:
+    type: retrieval
+    description: >
+      Retrieve cooperative-finance knowledge-base passages relevant to the
+      requested product.
+    query: >
+      Use the requested product and member question to retrieve its purpose,
+      eligibility requirements, important terms, member responsibilities,
+      risks, limitations, and appropriate use cases.
+    top_k: 4
+    outputs:
+      passages: product_passages
+      source_ids: product_source_ids
+    next: explain-product
+
+  explain-product:
+    type: interaction
+    description: >
+      Produce a clear member-facing explanation grounded in retrieved evidence.
+    prompt: >
+      Explain the requested cooperative-finance product using the retrieved
+      finance-KB passages.
+
+      The explanation should cover:
+      - what the product is;
+      - what member need it is designed to address;
+      - important requirements or conditions;
+      - relevant risks, costs, or limitations;
+      - a reasonable next step for the member.
+
+      Separate documented product facts from general educational guidance. Do
+      not invent rates, eligibility rules, guarantees, deadlines, or product
+      terms. If the retrieved evidence does not answer part of the member's
+      question, state that limitation directly.
+    inputs:
+      product_id: product_id
+      member_question: member_question
+      grounding: product_passages
+    outputs:
+      explanation: product_explanation
+    next: prepare-explanation-outcome
+
+  prepare-explanation-outcome:
+    type: output
+    description: >
+      Assemble the grounded explanation and its source identifiers.
+    output:
+      explanation: product_explanation
+      explanation_sources: product_source_ids
+    next: complete
+
+  complete:
+    type: complete
+    description: >
+      Return the grounded product explanation as the engagement outcome.
