@@ -10,7 +10,7 @@ from capillary_actions_sdk.schema.domain_schema import validate_memory_entry
 
 from primer_core.adapters.capillary.file_memory_store import FileMemoryStore
 from primer_core.domains.domain_pack import load_domain_pack
-from primer_core.memory.core import MemoryCore, _validate_content_fields
+from primer_core.memory.core import MemoryCore
 
 
 async def test_finance_risk_appetite_signal_round_trips_through_unchanged_engine(
@@ -65,7 +65,7 @@ async def test_finance_risk_appetite_signal_round_trips_through_unchanged_engine
     assert retrieved_working_memory_entry.content == {"tolerance": "moderate"}
 
 
-async def test_every_declared_finance_dimension_validates() -> None:
+async def test_every_declared_finance_dimension_validates(tmp_path: Path) -> None:
     """
     BDD Scenario #2
     ---------------
@@ -91,12 +91,12 @@ async def test_every_declared_finance_dimension_validates() -> None:
             dimension=test_dimension,
             content={field: "test_attribute" for field in test_fields},
         )
-        # ...passes validate_memory_entry
-        validate_memory_entry(entry=test_entry, schema=test_schema)
-        # (and _validate_content_fields for good measure)
-        _validate_content_fields(entry=test_entry, schema=test_schema)
-
-        # Then all four validate
+        # ...passes validate_memory_entry...
+        try:
+            validate_memory_entry(entry=test_entry, schema=test_schema)
+        except ValueError as e:
+            raise AssertionError(str(e))
+        # ... Then all four validate
 
     # ...and an entry with an undeclared field or dimension is rejected
     undeclared_field_entry = MemoryEntry(
@@ -105,9 +105,9 @@ async def test_every_declared_finance_dimension_validates() -> None:
         dimension="financial_history",
         content={"undeclared_field": "test_attribute"},
     )
+    test_memory = MemoryCore(schema=test_schema, store=FileMemoryStore(path=tmp_path / "mem.json"))
     with pytest.raises(ValueError, match="do not match with the provided schema"):
-        validate_memory_entry(entry=undeclared_field_entry, schema=test_schema)
-        _validate_content_fields(entry=undeclared_field_entry, schema=test_schema)
+        await test_memory.write(subject_id=uuid4(), entry=undeclared_field_entry)
 
     undeclared_dimension_entry = MemoryEntry(
         id=uuid4(),
@@ -117,10 +117,9 @@ async def test_every_declared_finance_dimension_validates() -> None:
     )
     with pytest.raises(ValueError, match="Unknown dimension"):
         validate_memory_entry(entry=undeclared_dimension_entry, schema=test_schema)
-        _validate_content_fields(entry=undeclared_dimension_entry, schema=test_schema)
 
 
-async def test_zero_engine_change_is_proven_not_asserted() -> None:
+def test_zero_engine_change_is_proven_not_asserted() -> None:
     """
     BDD Scenario #3
     ---------------
@@ -130,10 +129,16 @@ async def test_zero_engine_change_is_proven_not_asserted() -> None:
     When `git diff main -- src/primer_core/memory/` is inspected
     Then it is empty — the finance dimensions run on the engine exactly as merged
     """
-    command = "git diff main -- src/primer_core/memory/"
+    command = "git diff origin/main -- src/primer_core/memory/"
 
     # When `git diff main -- src/primer_core/memory/` is inspected
-    result = subprocess.run(command.split(), capture_output=True, text=True, check=True)
+    repo_root = Path(__file__).resolve().parents[2]
+    try:
+        result = subprocess.run(
+            command.split(), capture_output=True, text=True, check=True, cwd=repo_root
+        )
+    except subprocess.CalledProcessError:
+        raise AssertionError(f'Executed external command "{command}" failed.')
 
     # Then it is empty — the finance dimensions run on the engine exactly as merged
     assert result.stdout.strip() == ""
