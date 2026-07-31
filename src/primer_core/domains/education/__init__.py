@@ -11,7 +11,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import capillary_actions_sdk
-
 from primer_core.domains.domain_pack import DomainPack, build_pack
 
 WDF_DIR = Path(__file__).parent / "wdf"

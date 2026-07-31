@@ -2,11 +2,11 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-import capillary_actions_sdk
 from capillary_actions_sdk.events import AGUIEventType
 from capillary_actions_sdk.models.student_model import PreferenceSignal
 from capillary_actions_sdk.schema.domain_schema import load
 
+import capillary_actions_sdk
 from primer_core.adapters.capillary.file_memory_store import FileMemoryStore
 from primer_core.adapters.capillary.kb_pgvector import PgVectorKnowledgeBase
 from primer_core.adapters.capillary.workflow_cli_runner import WorkflowCliRunner

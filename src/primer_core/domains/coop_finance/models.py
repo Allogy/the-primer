@@ -76,14 +76,11 @@ class AllocationSuggestion(BaseModel):
         try:
             payload = output["suggestion"]
         except KeyError as exc:
-            raise ValueError(
-                "engagement output does not contain a 'suggestion' key"
-            ) from exc
+            raise ValueError("engagement output does not contain a 'suggestion' key") from exc
 
         if not isinstance(payload, Mapping):
             raise ValueError(
-                "output['suggestion'] must be a mapping, "
-                f"got {type(payload).__name__}"
+                f"output['suggestion'] must be a mapping, got {type(payload).__name__}"
             )
 
         return cls.model_validate(payload)
@@ -117,10 +114,7 @@ def derive_confidence(
     if not 0.0 <= profile_completeness <= 1.0:
         raise ValueError("profile_completeness must be between 0.0 and 1.0")
 
-    evidence_fraction = (
-        min(retrieved_passage_count, EVIDENCE_SATURATION)
-        / EVIDENCE_SATURATION
-    )
+    evidence_fraction = min(retrieved_passage_count, EVIDENCE_SATURATION) / EVIDENCE_SATURATION
 
     score = (
         CONFIDENCE_FLOOR

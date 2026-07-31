@@ -4,7 +4,6 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from uuid import uuid4
 
-import capillary_actions_sdk
 from capillary_actions_sdk.events import AGUIEvent
 from capillary_actions_sdk.ports.platform import (
     RunWorkflowPort,
@@ -13,6 +12,7 @@ from capillary_actions_sdk.ports.platform import (
 )
 from capillary_actions_sdk.schema.domain_schema import load
 
+import capillary_actions_sdk
 from primer_core.adapters.capillary.file_memory_store import FileMemoryStore
 from primer_core.memory.core import MemoryCore
 from primer_core.orchestrator import (
