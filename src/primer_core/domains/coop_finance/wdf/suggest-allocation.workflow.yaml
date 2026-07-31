@@ -1,16 +1,118 @@
-# Suggest Allocation Workflow Definition — STUB (KG-W5 / RAG-1847)
+# Suggest Allocation Workflow Definition
 #
-# Minimal WDF structure only: name, entry, exit, nodes. It exists so the
-# coop-finance pack registers a real, loadable skill and the orchestrator can
-# resolve a workflow id for it.
-#
-# Real skill content — including the AllocationSuggestion output contract
-# reserved in primer_core.domains.coop_finance.models — is DS-W5 scope.
+# Produces a structured AllocationSuggestion grounded in retrieved finance-KB
+# evidence and the available member profile.
 
 name: suggest-allocation
-entry: assess
+entry: retrieve-allocation-context
 exit: complete
 
 nodes:
-  assess: {}
-  complete: {}
+  retrieve-allocation-context:
+    type: retrieval
+    description: >
+      Retrieve cooperative-finance guidance relevant to the member's allocation
+      goal, constraints, available products, and readiness.
+    query: >
+      Use the member goal and profile to retrieve guidance about liquidity,
+      time horizon, financial constraints, product limitations, member
+      responsibilities, risk considerations, and suitable next actions.
+    top_k: 4
+    outputs:
+      passages: allocation_passages
+      source_ids: allocation_source_ids
+    next: evaluate-member-context
+
+  evaluate-member-context:
+    type: interaction
+    description: >
+      Determine what recommendation the available profile and retrieved evidence
+      can support.
+    prompt: >
+      Review the member profile, stated allocation goal, and retrieved
+      cooperative-finance passages.
+
+      Identify:
+      - the member's stated goal;
+      - populated finance-profile dimensions;
+      - relevant constraints;
+      - evidence supporting a recommendation;
+      - missing information;
+      - limitations that should affect the recommendation.
+
+      Do not invent missing member details or product rules. If important
+      information is absent, the appropriate recommendation may be to gather
+      more information before allocating.
+    inputs:
+      member_profile: member_profile
+      allocation_goal: allocation_goal
+      grounding: allocation_passages
+    outputs:
+      assessment: allocation_assessment
+      populated_dimensions: populated_dimensions
+    next: derive-confidence
+
+  derive-confidence:
+    type: function
+    description: >
+      Compute deterministic confidence from retrieval breadth and member-profile
+      completeness.
+    function: derive_confidence
+    inputs:
+      retrieved_passage_count: allocation_passages.count
+      profile_completeness: populated_dimensions.completeness
+    outputs:
+      confidence: suggestion_confidence
+    next: formulate-suggestion
+
+  formulate-suggestion:
+    type: interaction
+    description: >
+      Produce the recommendation and grounded rationale for the structured
+      AllocationSuggestion.
+    prompt: >
+      Produce an allocation suggestion using only the member context,
+      allocation assessment, and retrieved finance-KB evidence.
+
+      The recommendation must state what allocation approach or next action the
+      member should consider. Keep it concise and member-facing.
+
+      The rationale must explain why the recommendation follows from the
+      retrieved evidence and available profile. It must paraphrase or reference
+      relevant finance-KB content rather than make unsupported claims.
+
+      Do not generate a confidence value. Confidence is supplied separately by
+      the deterministic confidence function.
+
+      Do not invent product terms, member facts, guarantees, or evidence.
+    inputs:
+      member_profile: member_profile
+      allocation_goal: allocation_goal
+      assessment: allocation_assessment
+      grounding: allocation_passages
+    outputs:
+      recommendation: suggestion_recommendation
+      rationale: suggestion_rationale
+    next: prepare-suggestion-outcome
+
+  prepare-suggestion-outcome:
+    type: output
+    description: >
+      Assemble the machine-readable AllocationSuggestion and source provenance.
+    output:
+      suggestion:
+        recommendation: suggestion_recommendation
+        rationale: suggestion_rationale
+        confidence: suggestion_confidence
+      suggestion_sources: allocation_source_ids
+      writeback:
+        dimension: goals
+        content:
+          targets: suggestion_recommendation
+          priorities: suggestion_rationale
+    next: complete
+
+  complete:
+    type: complete
+    description: >
+      Return the structured allocation suggestion as the engagement outcome.

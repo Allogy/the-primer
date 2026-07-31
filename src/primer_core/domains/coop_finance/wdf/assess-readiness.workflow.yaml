@@ -1,15 +1,77 @@
-# Assess Readiness Workflow Definition — STUB (KG-W5 / RAG-1847)
+# Assess Readiness Workflow Definition
 #
-# Minimal WDF structure only: name, entry, exit, nodes. It exists so the
-# coop-finance pack registers a real, loadable skill and the orchestrator can
-# resolve a workflow id for it.
-#
-# Real skill content (readiness rubric, evidence gathering) is DS-W5 scope.
+# Evaluates whether a cooperative-finance member has enough product knowledge
+# and profile information to make an informed decision. The assessment must be
+# grounded in retrieved finance-KB content.
 
 name: assess-readiness
-entry: review
+entry: retrieve-readiness-criteria
 exit: complete
 
 nodes:
-  review: {}
-  complete: {}
+  retrieve-readiness-criteria:
+    type: retrieval
+    description: >
+      Retrieve cooperative-finance knowledge-base passages describing the
+      requirements, risks, limitations, and member responsibilities associated
+      with the requested product.
+    query: >
+      Use the requested product and member context to retrieve readiness
+      criteria, product requirements, relevant risks, liquidity considerations,
+      and information a member should understand before proceeding.
+    top_k: 4
+    outputs:
+      passages: readiness_passages
+      source_ids: readiness_source_ids
+    next: assess-member-readiness
+
+  assess-member-readiness:
+    type: interaction
+    description: >
+      Compare the member profile and demonstrated understanding against the
+      retrieved readiness criteria.
+    prompt: >
+      Assess whether the member is ready to make an informed decision about the
+      requested cooperative-finance product.
+
+      Use only the supplied member context and retrieved finance-KB passages.
+
+      The assessment should identify:
+      - criteria the member currently satisfies;
+      - important information or understanding that is missing;
+      - product risks or responsibilities the member should recognize;
+      - the most useful next educational action.
+
+      Do not invent member information, product rules, rates, guarantees, or
+      eligibility requirements. When the evidence is insufficient, state that
+      clearly instead of marking the member ready.
+    inputs:
+      member_profile: member_profile
+      product_id: product_id
+      grounding: readiness_passages
+    outputs:
+      readiness: readiness
+      unmet_criteria: unmet_criteria
+      notes: assessment_notes
+    next: prepare-readiness-outcome
+
+  prepare-readiness-outcome:
+    type: output
+    description: >
+      Assemble the schema-valid readiness result and generic write-back payload.
+    output:
+      readiness: readiness
+      unmet_criteria: unmet_criteria
+      notes: assessment_notes
+      readiness_sources: readiness_source_ids
+      writeback:
+        dimension: risk_appetite
+        content:
+          tolerance: readiness
+          horizon: assessment_notes
+    next: complete
+
+  complete:
+    type: complete
+    description: >
+      Return the grounded readiness assessment as the engagement outcome.
