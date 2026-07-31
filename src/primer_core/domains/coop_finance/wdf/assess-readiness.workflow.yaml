@@ -65,8 +65,10 @@ nodes:
       notes: assessment_notes
       readiness_sources: readiness_source_ids
       writeback:
-        dimension: finance_readiness
-        content: assessment_notes
+        dimension: risk_appetite
+        content:
+          tolerance: readiness
+          horizon: assessment_notes
     next: complete
 
   complete:

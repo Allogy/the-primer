@@ -106,8 +106,10 @@ nodes:
         confidence: suggestion_confidence
       suggestion_sources: allocation_source_ids
       writeback:
-        dimension: finance_allocation
-        content: suggestion_rationale
+        dimension: goals
+        content:
+          targets: suggestion_recommendation
+          priorities: suggestion_rationale
     next: complete
 
   complete:

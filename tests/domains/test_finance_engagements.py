@@ -171,9 +171,22 @@ FINANCE_ENGAGEMENTS = (
     "assess-readiness",
 )
 
+# Engagements whose WDF must persist its outcome to member memory.
+WRITEBACK_ENGAGEMENTS = (
+    "suggest-allocation",
+    "assess-readiness",
+)
+
+# The node vocabulary the coop-finance WDFs are authored in.
+WDF_NODE_TYPES = frozenset({"retrieval", "interaction", "function", "output", "complete"})
+
 GROUNDED_LIQUIDITY_FACT = (
     "Members should preserve sufficient liquid reserves before increasing long-term allocations."
 )
+
+LIQUIDITY_RECOMMENDATION = "Preserve a liquid reserve before increasing long-term allocations."
+
+READINESS_NOTES = "The member should clarify the expected time horizon before proceeding."
 
 
 class FinanceEngagementRunner(RunWorkflowPort):
@@ -230,9 +243,7 @@ def _finance_responses() -> dict[UUID, RunWorkflowResponse]:
             status="completed",
             output={
                 "suggestion": {
-                    "recommendation": (
-                        "Preserve a liquid reserve before increasing long-term allocations."
-                    ),
+                    "recommendation": LIQUIDITY_RECOMMENDATION,
                     "rationale": GROUNDED_LIQUIDITY_FACT,
                     "confidence": confidence,
                 },
@@ -242,10 +253,15 @@ def _finance_responses() -> dict[UUID, RunWorkflowResponse]:
                     "finance-kb-allocation-003",
                     "finance-kb-allocation-004",
                 ],
+                # Mirrors the suggest-allocation WDF's declared writeback:
+                # dimension `goals`, content keyed by the manifest fields
+                # `targets`/`priorities`, sourced from the recommendation and
+                # rationale outputs.
                 "writeback": {
                     "dimension": "goals",
                     "content": {
-                        "priorities": ["preserve_liquidity"],
+                        "targets": LIQUIDITY_RECOMMENDATION,
+                        "priorities": GROUNDED_LIQUIDITY_FACT,
                     },
                 },
             },
@@ -256,8 +272,19 @@ def _finance_responses() -> dict[UUID, RunWorkflowResponse]:
             output={
                 "readiness": "partial",
                 "unmet_criteria": ["time_horizon"],
-                "notes": ("The member should clarify the expected time horizon before proceeding."),
+                "notes": READINESS_NOTES,
                 "readiness_sources": ["finance-kb-readiness-001"],
+                # Mirrors the assess-readiness WDF's declared writeback:
+                # dimension `risk_appetite`, content keyed by the manifest
+                # fields `tolerance`/`horizon`, sourced from the readiness and
+                # assessment-notes outputs.
+                "writeback": {
+                    "dimension": "risk_appetite",
+                    "content": {
+                        "tolerance": "partial",
+                        "horizon": READINESS_NOTES,
+                    },
+                },
             },
         ),
     }
@@ -289,6 +316,72 @@ def _build_finance_orchestrator(
     )
 
     return orchestrator, runner, finance_memory
+
+
+def _declared_writeback(engagement: str) -> dict:
+    """Return the writeback mapping declared by the engagement WDF's output node."""
+    pack = load_domain_pack("coop-finance")
+    wdf = pack.skills.load_wdf(engagement)
+
+    for node in wdf["nodes"].values():
+        if node.get("type") == "output" and "writeback" in node.get("output", {}):
+            return node["output"]["writeback"]
+
+    raise AssertionError(f"WDF {engagement!r} declares no writeback")
+
+
+@pytest.mark.parametrize("engagement", FINANCE_ENGAGEMENTS)
+def test_finance_wdfs_are_contract_valid_and_internally_consistent(engagement: str) -> None:
+    """The packaged WDFs are internally consistent and manifest-aligned.
+
+    Every node carries a known type, every `next` edge resolves, the graph
+    walks entry -> exit visiting each declared node exactly once, and any
+    declared writeback targets a manifest dimension with dict content keyed
+    only by that dimension's declared fields — the shape write_back_outcome
+    and MemoryCore.ingest require.
+    """
+    pack = load_domain_pack("coop-finance")
+    wdf = pack.skills.load_wdf(engagement)
+
+    assert {"name", "entry", "exit", "nodes"} <= wdf.keys()
+    assert wdf["name"] == engagement
+
+    nodes = wdf["nodes"]
+    assert wdf["entry"] in nodes
+    assert wdf["exit"] in nodes
+
+    for node_name, node in nodes.items():
+        assert isinstance(node, dict)
+        assert node.get("type") in WDF_NODE_TYPES, f"node {node_name!r} has an unknown type"
+        if node_name == wdf["exit"]:
+            assert node["type"] == "complete"
+            assert "next" not in node
+        else:
+            assert node["type"] != "complete"
+            assert node["next"] in nodes
+
+    # Walk entry -> exit: every declared node participates, no cycles.
+    visited = [wdf["entry"]]
+    while visited[-1] != wdf["exit"]:
+        successor = nodes[visited[-1]]["next"]
+        assert successor not in visited
+        visited.append(successor)
+    assert set(visited) == set(nodes)
+
+    writebacks = [
+        node["output"]["writeback"]
+        for node in nodes.values()
+        if node.get("type") == "output" and "writeback" in node.get("output", {})
+    ]
+    if engagement in WRITEBACK_ENGAGEMENTS:
+        assert writebacks, f"WDF {engagement!r} must persist its outcome via a writeback"
+    for writeback in writebacks:
+        dimension = pack.schema.dimension(writeback["dimension"])
+        assert dimension is not None, (
+            f"writeback dimension {writeback['dimension']!r} is not declared in the manifest"
+        )
+        assert isinstance(writeback["content"], dict), "writeback content must be a mapping"
+        assert set(writeback["content"]) <= set(dimension.fields)
 
 
 @pytest.mark.parametrize("engagement", FINANCE_ENGAGEMENTS)
@@ -340,9 +433,7 @@ async def test_suggest_allocation_returns_structured_suggestion() -> None:
 
     suggestion = AllocationSuggestion.from_outcome_output(response.output)
 
-    assert suggestion.recommendation == (
-        "Preserve a liquid reserve before increasing long-term allocations."
-    )
+    assert suggestion.recommendation == LIQUIDITY_RECOMMENDATION
     assert suggestion.rationale == GROUNDED_LIQUIDITY_FACT
     assert suggestion.confidence == derive_confidence(
         retrieved_passage_count=4,
@@ -359,7 +450,10 @@ async def test_suggest_allocation_returns_structured_suggestion() -> None:
     assert len(runner.requests) == 1
 
 
-async def test_finance_writeback_uses_existing_after_engagement_hook() -> None:
+@pytest.mark.parametrize("engagement", WRITEBACK_ENGAGEMENTS)
+async def test_finance_writeback_uses_existing_after_engagement_hook(
+    engagement: str,
+) -> None:
     pack = load_domain_pack("coop-finance")
     memory = MemoryCore(
         schema=pack.schema,
@@ -380,7 +474,7 @@ async def test_finance_writeback_uses_existing_after_engagement_hook() -> None:
     subject_id = uuid4()
 
     await orchestrator.run_engagement(
-        skill_name="suggest-allocation",
+        skill_name=engagement,
         subject_id=subject_id,
         thread_id="thread-writeback",
         input_data={
@@ -395,9 +489,12 @@ async def test_finance_writeback_uses_existing_after_engagement_hook() -> None:
     assert len(working_memory.entries) == 1
 
     entry = working_memory.entries[0]
+    declared = _declared_writeback(engagement)
+    expected = _finance_responses()[pack.skills.workflow_id(engagement)].output["writeback"]
 
-    assert entry.dimension == "goals"
-    assert entry.content == {
-        "priorities": ["preserve_liquidity"],
-    }
+    # The entry lands under the dimension the WDF itself declares, with the
+    # content fields the WDF maps, populated as the fixture emitted them.
+    assert entry.dimension == declared["dimension"]
+    assert set(entry.content) == set(declared["content"])
+    assert entry.content == expected["content"]
     assert entry.metadata["source"] == "primer_core.orchestrator"
