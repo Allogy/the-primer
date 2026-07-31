@@ -1,21 +1,29 @@
-"""Corrective retrieval quality on the struggle -> re-teach adaptive path (KG-W4).
+"""Corrective retrieval quality around the struggle -> re-teach seam (KG-W4).
 
-KG-W5 proved per-domain KB *wiring*; this story proves the *content* served on
-the adaptive path: when a struggling learner is routed to the easier engagement,
-retrieval returns on-topic chunks for the same concept at the simpler level, and
-the query that reaches the KB is the re-teach one, not the failed one verbatim.
+KG-W5 proved per-domain KB *wiring*; this story proves the *content* served to
+a re-teach step. The engine deliberately ships no query-rewriting or handoff
+component — turning the struggle hook's ``next_skill`` into a re-teach query
+and issuing the retrieval turn is the demo driver's job — so these tests are
+component-level coverage of the two sides of that seam, with the test itself
+standing in as the demo driver for the handoff:
+
+* the struggle hook's ``next_skill`` derivation (``on_struggle`` walking
+  ``schema.engagements``), and
+* the retrieval and KB routing that the re-teach step consumes
+  (``InteractionAgent.turn`` against the pack's KB names).
 
 Difficulty is a property of the seeded fixtures and the re-teach query, never of
 the engine: chunks carry their level in their own text, and the corrective
 retriever stand-in ranks by lexical overlap with the query, so every on-topic
 assertion exercises the query and KB routing rather than echoing seed order.
 
-Scenario 1 drives the full loop on the coop-finance pack because the struggle
-hook derives the easier engagement from ``schema.engagements`` and coop-finance
-is the pack that ships more than one real engagement. The education pack ships a
-single real engagement (plus the ``'...'`` placeholder), so its corrective
-re-teach re-runs ``tutor-concept`` itself — Scenario 2 covers that pack's KB
-routing, per its Gherkin.
+Scenario 1 uses the coop-finance pack because the struggle hook derives the
+easier engagement from ``schema.engagements`` and coop-finance is the pack that
+ships more than one real engagement. The education pack ships a single real
+engagement (plus the ``'...'`` placeholder), so its struggle hook must stay a
+safe no-op at the floor — Scenario 2 proves that no-op fires, then covers the
+pack's retrieval routing with one direct ``InteractionAgent`` turn (no second
+engagement run).
 """
 
 from __future__ import annotations
@@ -95,8 +103,8 @@ ADVANCED_CERTIFICATE_CHUNK = RetrievedChunk(
 
 FOUNDATIONAL_CERTIFICATE_CHUNK = RetrievedChunk(
     text=(
-        "Share certificates basics: a share certificate locks savings for a fixed term "
-        "and pays a set dividend."
+        "Share certificates basics, a beginner introduction: a share certificate locks "
+        "savings for a fixed term and pays a set dividend."
     ),
     score=0.8,
 )
@@ -140,13 +148,18 @@ async def test_corrective_retrieval_serves_reteach_with_on_topic_chunks(tmp_path
     """
     BDD Scenario #1
     ---------------
-    Scenario: corrective retrieval serves the re-teach engagement with on-topic chunks
+    Scenario: corrective retrieval serves the re-teach step with on-topic chunks
 
     Given a knowledge base seeded with chunks for a concept at two difficulty levels
     And an engagement whose outcome marks the subject as struggling
-    When the struggle hook selects the easier engagement and it runs with retrieval
+    When the struggle hook selects the easier engagement
+    And the test — acting as the demo driver — derives the re-teach query and retrieves
     Then the retrieved chunks are on-topic for the SAME concept being re-taught
     And the retrieval query reflects the re-teach context, not the original failed query verbatim
+
+    Component-level coverage, not an end-to-end adaptive loop: the engine has no
+    query-rewriting/handoff component (the demo driver owns it), so the hook ->
+    retrieval handoff here is test-authored by design.
     """
     pack = load_domain_pack("coop-finance")
 
@@ -204,9 +217,13 @@ async def test_corrective_retrieval_serves_reteach_with_on_topic_chunks(tmp_path
     next_skill = recorded_payloads[0]["next_skill"]
     assert next_skill == "explain-product"
 
-    # ...and it runs with retrieval — the re-teach query is derived from the
-    # re-teach context (the easier engagement + the same concept), not replayed.
-    reteach_query = f"{next_skill} re-teach: cover the basics of share certificates simply"
+    # ...and the re-teach step runs with retrieval. The handoff is test-authored
+    # (the engine has no query-rewriting component; the demo driver owns it):
+    # the test derives the query from the hook's next_skill and the re-taught
+    # concept, and issues the turn itself, standing in for the driver.
+    reteach_query = (
+        f"{next_skill} re-teach: a beginner introduction covering the basics of share certificates"
+    )
     await orchestrator.run_engagement(
         skill_name=next_skill,
         subject_id=subject_id,
@@ -221,6 +238,18 @@ async def test_corrective_retrieval_serves_reteach_with_on_topic_chunks(tmp_path
     assert reteach_chunks
     assert all("share certificate" in chunk.text.lower() for chunk in reteach_chunks)
     assert UNRELATED_OVERDRAFT_CHUNK.text not in [chunk.text for chunk in reteach_chunks]
+
+    # Guard against fixture wording drift: the foundational-first ranking below
+    # holds only while the re-teach query shares strictly more significant
+    # tokens with the foundational chunk than with the advanced one. Compute
+    # both overlaps with the same tokenizer the fake ranks by, and pin the
+    # designed margin (3: basics/beginner/introduction beyond the shared
+    # share/certificates) so any single-token drift fails HERE, loudly, instead
+    # of silently flipping — or barely preserving — the ranking.
+    reteach_tokens = ranking_tokens(reteach_query)
+    foundational_overlap = len(reteach_tokens & ranking_tokens(FOUNDATIONAL_CERTIFICATE_CHUNK.text))
+    advanced_overlap = len(reteach_tokens & ranking_tokens(ADVANCED_CERTIFICATE_CHUNK.text))
+    assert foundational_overlap >= advanced_overlap + 3
 
     # ...and the simpler level leads: the foundational chunk outranks the
     # advanced one the learner just failed on.
@@ -240,22 +269,32 @@ async def test_adaptive_path_retrieves_from_the_education_pack_kb(tmp_path: Path
     """
     BDD Scenario #2
     ---------------
-    Scenario: the adaptive path retrieves from the correct per-domain KB
+    Scenario: re-teach retrieval routes to the education pack's own KB
 
     Given the education pack loaded via load_domain_pack
-    When the re-teach engagement retrieves
+    When the struggle hook fires at the pack's floor engagement and no-ops
+    And the re-teach step retrieves (one direct InteractionAgent turn — the test
+        acts as the demo driver; no second engagement run happens)
     Then the chunks come from the education KB named in the pack (no cross-domain bleed)
+
+    Component-level coverage of two things: the floor-level struggle hook is
+    dispatched and selects nothing simpler, and the retrieval a re-teach step
+    would consume searches only the education KB.
     """
     # Given the education pack loaded via load_domain_pack
     pack = load_domain_pack("education")
 
     # A corpus spanning BOTH domains' knowledge bases: the finance chunk is bait
     # that lexically matches the education re-teach query, so only KB routing —
-    # not luck of the seeding — keeps it out.
+    # not luck of the seeding — keeps it out. The bait is seeded under the
+    # finance pack's manifest-declared KB name (not a hardcoded literal) so a
+    # future manifest rename cannot silently defuse the no-bleed assertion by
+    # parking the bait under a name nothing would ever search.
+    finance_kb_name = load_domain_pack("coop-finance").kb_names[0]
     kb = CorpusKnowledgeBase(
         {
             "primer-education-kb": [FRACTIONS_FOUNDATIONS_CHUNK],
-            "primer-coop-finance-kb": [FINANCE_BAIT_CHUNK],
+            finance_kb_name: [FINANCE_BAIT_CHUNK],
         }
     )
     memory = MemoryCore(schema=pack.schema, store=FileMemoryStore(path=tmp_path / "memory.json"))
@@ -266,8 +305,18 @@ async def test_adaptive_path_retrieves_from_the_education_pack_kb(tmp_path: Path
     async def record_after(context: HookContext) -> None:
         recorded_payloads.append(context.payload)
 
+    # Recording wrapper delegating to the real on_struggle: `struggling` is
+    # written by run_engagement itself before ON_STRUGGLE_DETECTED fires, so
+    # without proof of dispatch the no-op assertions below would also pass if
+    # the struggle event were never delivered at all.
+    struggle_hook_engagements: list[str] = []
+
+    async def recording_on_struggle(context: HookContext) -> None:
+        struggle_hook_engagements.append(context.engagement)
+        await on_struggle(context)
+
     hooks = HookRegistry()
-    hooks.register(event=HookEvent.ON_STRUGGLE_DETECTED, fn=on_struggle)
+    hooks.register(event=HookEvent.ON_STRUGGLE_DETECTED, fn=recording_on_struggle)
     hooks.register(event=HookEvent.AFTER_ENGAGEMENT, fn=record_after)
 
     orchestrator = EngagementOrchestrator(
@@ -279,18 +328,25 @@ async def test_adaptive_path_retrieves_from_the_education_pack_kb(tmp_path: Path
     )
 
     # The learner struggles in tutor-concept. The education pack ships a single
-    # real engagement, so the corrective path re-teaches through tutor-concept
-    # itself: on_struggle has nothing simpler to select (the hook stays a no-op
-    # at the schema's floor engagement) and the re-teach query carries the level.
+    # real engagement, so on_struggle has nothing simpler to select and must
+    # stay a safe no-op at the schema's floor engagement. No second
+    # run_engagement happens in this test: any re-teach would go through
+    # tutor-concept itself, and the direct InteractionAgent turn below stands
+    # in for that re-teach step, with the query carrying the level.
     await orchestrator.run_engagement(
         skill_name="tutor-concept",
         subject_id=subject_id,
         thread_id="thread-1",
     )
     assert recorded_payloads[0]["struggling"] is True
+
+    # The floor no-op, proven: the struggle hook really was dispatched — exactly
+    # once, for tutor-concept — and still selected nothing simpler.
+    assert struggle_hook_engagements == ["tutor-concept"]
     assert "next_skill" not in recorded_payloads[0]
 
-    # When the re-teach engagement retrieves
+    # When the re-teach step retrieves — one direct turn, issued by the test as
+    # the demo driver
     interaction = InteractionAgent(
         schema=pack.schema,
         kb=kb,
