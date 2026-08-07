@@ -28,12 +28,10 @@ engagement run).
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from uuid import uuid4
 
 from capillary_actions_sdk.models.knowledge import RetrievedChunk
-from capillary_actions_sdk.ports.knowledge import KnowledgeBasePort
 from capillary_actions_sdk.ports.platform import RunWorkflowResponse
 from pydantic_ai.models.test import TestModel
 
@@ -45,51 +43,7 @@ from primer_core.orchestrator.engagement import EngagementOrchestrator
 from primer_core.orchestrator.hooks import HookContext, HookEvent, HookRegistry
 from primer_core.orchestrator.writeback import on_struggle
 from primer_core.testing.fakes import FakeRunWorkflowPort
-
-MIN_RANKING_TOKEN_LENGTH = 4
-
-
-def ranking_tokens(text: str) -> set[str]:
-    """Significant lowercase tokens of *text* — short stopwords drop out."""
-    return {
-        token
-        for token in re.findall(r"[a-z0-9]+", text.lower())
-        if len(token) >= MIN_RANKING_TOKEN_LENGTH
-    }
-
-
-class CorpusKnowledgeBase(KnowledgeBasePort):
-    """Deterministic corrective-retriever stand-in with a per-KB corpus.
-
-    Chunks are seeded under knowledge base names. ``retrieve`` searches only the
-    requested ``kb_names`` and ranks candidates by how many significant query
-    tokens their text shares (score breaks ties), so what comes back depends on
-    the query and the KB routing — not on seed order. Every call and its result
-    are recorded for assertion.
-    """
-
-    def __init__(self, corpus: dict[str, list[RetrievedChunk]]) -> None:
-        self._corpus = {kb_name: list(chunks) for kb_name, chunks in corpus.items()}
-        self.calls: list[tuple[str, list[str], int]] = []
-        self.results: list[list[RetrievedChunk]] = []
-
-    async def retrieve(
-        self, query: str, kb_names: list[str], top_k: int = 5
-    ) -> list[RetrievedChunk]:
-        self.calls.append((query, list(kb_names), top_k))
-        query_tokens = ranking_tokens(query)
-
-        candidates = [chunk for kb_name in kb_names for chunk in self._corpus.get(kb_name, [])]
-        ranked = sorted(
-            (chunk for chunk in candidates if query_tokens & ranking_tokens(chunk.text)),
-            key=lambda chunk: (len(query_tokens & ranking_tokens(chunk.text)), chunk.score),
-            reverse=True,
-        )
-
-        result = ranked[:top_k] if top_k > 0 else []
-        self.results.append(result)
-        return result
-
+from tests.domains.fakes import CorpusKnowledgeBase, ranking_tokens
 
 # --- Coop-finance fixtures: one concept (share certificates) at two levels ---
 
