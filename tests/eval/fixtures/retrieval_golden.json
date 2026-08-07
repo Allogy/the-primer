@@ -1,0 +1,166 @@
+{
+  "education": {
+    "kb_name": "primer-education-kb",
+    "corpus": [
+      {
+        "id": "edu-fractions-basics",
+        "text": "Fractions basics: a fraction names equal parts of one whole, such as half of a pizza.",
+        "score": 0.85
+      },
+      {
+        "id": "edu-fractions-advanced",
+        "text": "Advanced fractions strategy: multiply mixed numbers by converting them to improper fractions before simplifying.",
+        "score": 0.9
+      },
+      {
+        "id": "edu-derivatives-basics",
+        "text": "Derivatives basics: a derivative measures the instantaneous rate of change of a function.",
+        "score": 0.8
+      },
+      {
+        "id": "edu-derivatives-advanced",
+        "text": "Advanced derivatives: the chain rule differentiates composite functions layer by layer.",
+        "score": 0.9
+      },
+      {
+        "id": "edu-limits-basics",
+        "text": "Limits basics: a limit describes the value a function approaches near a point.",
+        "score": 0.75
+      },
+      {
+        "id": "edu-limits-advanced",
+        "text": "Advanced limits: one-sided limits and continuity determine where a function can be differentiated.",
+        "score": 0.88
+      },
+      {
+        "id": "edu-geometry-distractor",
+        "text": "Geometry warm-up: interior angles of a triangle always total one hundred eighty degrees.",
+        "score": 0.95
+      }
+    ],
+    "cases": [
+      {
+        "query": "tutor-concept re-teach: cover fractions basics with equal parts of a whole pizza example",
+        "retrieved_ids": [
+          "edu-fractions-basics",
+          "edu-fractions-advanced",
+          "edu-derivatives-basics",
+          "edu-limits-basics"
+        ],
+        "relevant_ids": [
+          "edu-fractions-basics",
+          "edu-fractions-advanced"
+        ]
+      },
+      {
+        "query": "tutor-concept re-teach: derivatives basics, the derivative as instantaneous rate of change",
+        "retrieved_ids": [
+          "edu-derivatives-basics",
+          "edu-derivatives-advanced",
+          "edu-fractions-basics",
+          "edu-limits-basics"
+        ],
+        "relevant_ids": [
+          "edu-derivatives-basics",
+          "edu-derivatives-advanced"
+        ]
+      },
+      {
+        "query": "tutor-concept re-teach: limits basics, the value a function approaches near a point",
+        "retrieved_ids": [
+          "edu-limits-basics",
+          "edu-limits-advanced",
+          "edu-derivatives-basics",
+          "edu-fractions-basics"
+        ],
+        "relevant_ids": [
+          "edu-limits-basics",
+          "edu-limits-advanced"
+        ]
+      }
+    ]
+  },
+  "coop-finance": {
+    "kb_name": "primer-coop-finance-kb",
+    "corpus": [
+      {
+        "id": "fin-share-certificate-basics",
+        "text": "Share certificates basics, a beginner introduction: a share certificate locks savings for a fixed term and pays a set dividend.",
+        "score": 0.8
+      },
+      {
+        "id": "fin-share-certificate-laddering",
+        "text": "Advanced strategy: laddering share certificates across staggered maturities trades liquidity for extra yield.",
+        "score": 0.9
+      },
+      {
+        "id": "fin-share-account-basics",
+        "text": "A credit union share account is a member's ownership stake in the cooperative; the balance both funds member lending and pays dividends.",
+        "score": 0.85
+      },
+      {
+        "id": "fin-share-account-eligibility",
+        "text": "Share account eligibility: membership requirements, important terms, and member responsibilities before opening a share account.",
+        "score": 0.7
+      },
+      {
+        "id": "fin-allocation-liquidity",
+        "text": "Allocation guidance: weigh liquidity needs, time horizon, and financial constraints before locking funds into long-term products.",
+        "score": 0.88
+      },
+      {
+        "id": "fin-readiness-criteria",
+        "text": "Readiness criteria: product requirements, relevant risks, and liquidity considerations a member should meet before purchasing.",
+        "score": 0.82
+      },
+      {
+        "id": "fin-overdraft-distractor",
+        "text": "Overdraft protection transfers funds automatically when checking balances fall short.",
+        "score": 0.95
+      }
+    ],
+    "cases": [
+      {
+        "query": "explain-product re-teach: a beginner introduction covering the basics of share certificates",
+        "retrieved_ids": [
+          "fin-share-certificate-basics",
+          "fin-share-certificate-laddering",
+          "fin-share-account-basics",
+          "fin-readiness-criteria",
+          "fin-share-account-eligibility"
+        ],
+        "relevant_ids": [
+          "fin-share-certificate-basics",
+          "fin-share-certificate-laddering"
+        ]
+      },
+      {
+        "query": "suggest-allocation re-teach: weigh liquidity, time horizon, and financial constraints before locking funds",
+        "retrieved_ids": [
+          "fin-allocation-liquidity",
+          "fin-readiness-criteria",
+          "fin-overdraft-distractor",
+          "fin-share-certificate-laddering",
+          "fin-share-account-basics"
+        ],
+        "relevant_ids": [
+          "fin-allocation-liquidity",
+          "fin-readiness-criteria"
+        ]
+      },
+      {
+        "query": "assess-readiness re-teach: readiness criteria, eligibility requirements, relevant risks, and liquidity considerations before purchasing",
+        "retrieved_ids": [
+          "fin-readiness-criteria",
+          "fin-share-account-eligibility",
+          "fin-allocation-liquidity",
+          "fin-share-certificate-laddering"
+        ],
+        "relevant_ids": [
+          "fin-readiness-criteria",
+          "fin-share-account-eligibility"
+        ]
+      }
+    ]
+  }
+}
