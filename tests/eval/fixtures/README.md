@@ -48,7 +48,22 @@ which is why each domain's high-score distractor chunk stays out of most cases.
   below perfect is a real regression, not noise.
 
 The fixture self-check `test_relevant_ids_lead_the_ranking` guarantees the
-threshold is attainable at k=2. Queries speak the product vocabulary of the
+threshold is attainable at k=2. A perfect score is a **rank-regression check
+over the deterministic fake**, not independent evidence of semantic relevance —
+the corrective-retrieval quality claim it protects was established
+functionally in KG-W4 (`tests/domains/test_corrective_retrieval.py`).
+
+## Consumer notes (LD-W6)
+
+- `relevant_ids` deserializes as a `list` — call `set(case["relevant_ids"])`
+  for the frozen `precision_at_k` signature.
+- To score a retrieval run: run it, **preserve the returned order**, and wrap
+  each chunk into an id-bearing dict via the text join key, e.g.
+  `{"id": text_to_id[chunk.text], "text": chunk.text, "score": chunk.score}`.
+- Do **not** score the static `retrieved_ids` list as the system output — it is
+  the golden expectation the run is compared against, not the measurement.
+
+Queries speak the product vocabulary of the
 merged WDFs (`explain-product`, `suggest-allocation`, `assess-readiness`
 retrieval prompts) on the finance side; the education `tutor-concept` WDF is a
 stub with no retrieval query text, so education cases use the established

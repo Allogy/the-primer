@@ -126,23 +126,62 @@ async def test_retrieved_ids_are_a_live_ranking_run(domain: str) -> None:
 
 
 @pytest.mark.parametrize("domain", DOMAINS)
-def test_no_bleed_is_proven_by_bait_not_by_luck(domain: str) -> None:
-    """At least one case lexically matches an other-domain chunk.
+async def test_no_bleed_is_proven_by_bait_not_by_luck(domain: str) -> None:
+    """Widen routing to ALL KBs and a foreign chunk reaches every case's top-k.
 
     Without this, the no-bleed half of the live-ranking test would be vacuous:
-    routing would be the only excluder of nothing. Some other-domain chunk must
-    share ranking tokens with some query, so only KB routing keeps it out.
+    routing would be the only excluder of nothing. Token overlap alone is not
+    enough — an overlapping foreign chunk could still sit below top_k. So probe
+    each query across BOTH domains' KBs and require an other-domain chunk
+    inside the contract top_k: single-domain routing is then provably the only
+    thing keeping it out of the golden results.
     """
     fixture = _fixture()
-    other_domains = [d for d in DOMAINS if d != domain]
-    other_chunk_tokens = [
-        ranking_tokens(chunk["text"]) for d in other_domains for chunk in fixture[d]["corpus"]
-    ]
-    assert any(
-        ranking_tokens(case["query"]) & tokens
-        for case in fixture[domain]["cases"]
-        for tokens in other_chunk_tokens
-    )
+    kb, text_to_id = _both_domain_kb(fixture)
+    all_kb_names = [fixture[d]["kb_name"] for d in DOMAINS]
+    own_ids = {chunk["id"] for chunk in fixture[domain]["corpus"]}
+
+    for case in fixture[domain]["cases"]:
+        retrieved = await kb.retrieve(case["query"], all_kb_names, top_k=CONTRACT_TOP_K)
+        retrieved_ids = {text_to_id[chunk.text] for chunk in retrieved}
+        assert retrieved_ids - own_ids, (
+            f"no other-domain chunk reaches top-{CONTRACT_TOP_K} for {case['query']!r}; "
+            "the no-bleed proof would be vacuous"
+        )
+
+
+def test_ids_and_texts_are_unique_file_wide() -> None:
+    """The chunk->id join map spans BOTH domains, so uniqueness must too.
+
+    Per-domain uniqueness is not enough: a text duplicated across domains would
+    corrupt the merged text->id map and fail the live-ranking test with a
+    cryptic wrong-id mismatch instead of a clear message here.
+    """
+    fixture = _fixture()
+    ids = [chunk["id"] for domain in DOMAINS for chunk in fixture[domain]["corpus"]]
+    texts = [chunk["text"] for domain in DOMAINS for chunk in fixture[domain]["corpus"]]
+    assert len(set(ids)) == len(ids)
+    assert len(set(texts)) == len(texts)
+
+
+@pytest.mark.parametrize("domain", DOMAINS)
+def test_ranking_keys_are_tie_free(domain: str) -> None:
+    """No two candidates share a (token-overlap, score) rank key for any case.
+
+    CorpusKnowledgeBase breaks exact rank-key ties by Python's stable sort —
+    i.e. corpus seed order. The golden orderings must never depend on that:
+    every candidate a query actually ranks must differ in overlap or score, so
+    reordering the corpus can never silently change retrieved_ids.
+    """
+    section = _fixture()[domain]
+    for case in section["cases"]:
+        query_tokens = ranking_tokens(case["query"])
+        keys = [
+            (len(query_tokens & ranking_tokens(chunk["text"])), chunk["score"])
+            for chunk in section["corpus"]
+            if query_tokens & ranking_tokens(chunk["text"])
+        ]
+        assert len(set(keys)) == len(keys), f"rank-key tie for query {case['query']!r}"
 
 
 @pytest.mark.parametrize("domain", DOMAINS)
