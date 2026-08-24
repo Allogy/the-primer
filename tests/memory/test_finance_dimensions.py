@@ -135,18 +135,14 @@ def test_zero_engine_change_is_proven_not_asserted() -> None:
     # When `git diff main -- src/primer_core/memory/` is inspected
     repo_root = Path(__file__).resolve().parents[2]
 
-    result = subprocess.run(
-        command.split(), capture_output=True, text=True, cwd=repo_root
-    )
+    result = subprocess.run(command.split(), capture_output=True, text=True, cwd=repo_root)
 
     # Return code of 1 indicates that no mentions of "primer_core.domains" was
     #   found in src/primer_core/memory/
-    assert result.returncode == 1, (
-        f'''Executed external command "{command}" failed:
+    assert result.returncode == 1, f'''Executed external command "{command}" failed:
         Exit code: {result.returncode}
         --- STDOUT ---
         {result.stdout}
         --- STDERR ---
         {result.stderr}
                 '''
-    )
